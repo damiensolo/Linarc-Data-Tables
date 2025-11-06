@@ -11,9 +11,23 @@ interface ProjectTableProps {
   onToggleRow: (taskId: number) => void;
   onToggleAll: () => void;
   rowNumberMap: Map<number, number>;
+  editingCell: { taskId: number; column: string } | null;
+  onEditCell: (cell: { taskId: number; column: string } | null) => void;
+  onUpdateTask: (taskId: number, updatedValues: Partial<Omit<Task, 'id' | 'children'>>) => void;
 }
 
-const ProjectTable: React.FC<ProjectTableProps> = ({ tasks, onToggle, selectedTaskIds, visibleTaskIds, onToggleRow, onToggleAll, rowNumberMap }) => {
+const ProjectTable: React.FC<ProjectTableProps> = ({ 
+  tasks, 
+  onToggle, 
+  selectedTaskIds, 
+  visibleTaskIds, 
+  onToggleRow, 
+  onToggleAll, 
+  rowNumberMap,
+  editingCell,
+  onEditCell,
+  onUpdateTask
+}) => {
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
   const numVisible = visibleTaskIds.length;
@@ -48,7 +62,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({ tasks, onToggle, selectedTa
           <th scope="col" className="py-3 px-6 font-medium border-b border-gray-200 w-[400px]">NAME</th>
           <th scope="col" className="py-3 px-6 font-medium border-b border-gray-200 w-[150px]">STATUS</th>
           <th scope="col" className="py-3 px-6 font-medium border-b border-gray-200 w-[120px]">ASSIGNEE</th>
-          <th scope="col" className="py-3 px-6 font-medium border-b border-gray-200 w-[220px]">START DATE DUE DATE</th>
+          <th scope="col" className="py-3 px-6 font-medium border-b border-gray-200 w-[220px]">START DATE - DUE DATE</th>
         </tr>
       </thead>
       <tbody>
@@ -61,6 +75,9 @@ const ProjectTable: React.FC<ProjectTableProps> = ({ tasks, onToggle, selectedTa
             rowNumberMap={rowNumberMap}
             selectedTaskIds={selectedTaskIds}
             onToggleRow={onToggleRow}
+            editingCell={editingCell}
+            onEditCell={onEditCell}
+            onUpdateTask={onUpdateTask}
           />
         ))}
       </tbody>

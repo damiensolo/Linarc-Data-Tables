@@ -10,12 +10,30 @@ const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTaskIds, setSelectedTaskIds] = useState(new Set<number>());
+  // FIX: Broaden the type for `column` to `string` to match the prop type in `ProjectTable`, resolving the assignment error.
+  const [editingCell, setEditingCell] = useState<{ taskId: number; column: string } | null>(null);
 
   const onSelectionChange = (selectedRowIds: string[]) => {
     console.log('onSelectionChange emitted:', selectedRowIds);
   };
 
+  const handleUpdateTask = useCallback((taskId: number, updatedValues: Partial<Omit<Task, 'id' | 'children'>>) => {
+    const updateRecursively = (currentTasks: Task[]): Task[] => {
+      return currentTasks.map(task => {
+        if (task.id === taskId) {
+          return { ...task, ...updatedValues };
+        }
+        if (task.children) {
+          return { ...task, children: updateRecursively(task.children) };
+        }
+        return task;
+      });
+    };
+    setTasks(prevTasks => updateRecursively(prevTasks));
+  }, []);
+
   const toggleTaskExpansion = useCallback((taskId: number) => {
+    setEditingCell(null); // Exit editing mode when toggling expansion
     const updateExpansion = (currentTasks: Task[]): Task[] => {
       return currentTasks.map(task => {
         if (task.id === taskId) {
@@ -159,13 +177,15 @@ const App: React.FC = () => {
               onToggleRow={handleToggleRow}
               onToggleAll={handleToggleAll}
               rowNumberMap={rowNumberMap}
+              editingCell={editingCell}
+              onEditCell={setEditingCell}
+              onUpdateTask={handleUpdateTask}
           />
         </main>
         <footer className="p-2 border-t border-gray-200 flex-shrink-0">
           <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium px-2 py-1.5 rounded-md hover:bg-gray-100">
             <PlusIcon className="w-4 h-4" />
             Item
-            <span className="text-xs text-gray-400 font-mono">^⇧N</span>
           </button>
         </footer>
       </div>
