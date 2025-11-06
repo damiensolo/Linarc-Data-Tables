@@ -96,7 +96,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
     <table className="text-sm text-left text-gray-500 whitespace-nowrap border-separate border-spacing-0">
       <thead className="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 z-20">
         <tr ref={headerRef}>
-          <th scope="col" className="sticky left-0 bg-gray-50 z-30 py-3 px-2 w-10 border-b border-gray-200 shadow-[1px_0_0_#e5e7eb]">
+          <th scope="col" className="sticky left-0 bg-gray-50 z-30 py-2 px-2 w-10 border-b border-gray-200 shadow-[1px_0_0_#e5e7eb]">
             <div className="flex items-center justify-center">
               <input
                 type="checkbox"
@@ -113,7 +113,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
             <th 
               key={col.id} 
               scope="col" 
-              className="py-3 px-6 font-medium border-b border-gray-200 relative group"
+              className="py-2 px-6 font-medium border-b border-gray-200 relative group"
               style={{ width: col.width, zIndex: 5 }}
             >
               {col.label}

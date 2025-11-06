@@ -1,4 +1,3 @@
-
 import React, { Fragment, useEffect, useRef } from 'react';
 import { Task, Status, Priority, Impact, Column, ColumnId } from '../types';
 import { ChevronRightIcon, ChevronDownIcon, DocumentIcon } from './Icons';
@@ -34,7 +33,7 @@ const fromInputFormat = (date: string): string => {
 const SelectionCell: React.FC<{ task: Task, isSelected: boolean, onToggleRow: (id: number) => void, rowNum?: number }> = ({ task, isSelected, onToggleRow, rowNum }) => {
   const taskNameId = `task-name-${task.id}`;
   return (
-    <td className={`sticky left-0 z-10 py-3 px-2 w-10 text-center text-gray-500 border-b border-gray-200 shadow-[1px_0_0_#e5e7eb] ${isSelected ? 'bg-indigo-50 group-hover:bg-indigo-100' : 'bg-white group-hover:bg-gray-50'}`}>
+    <td className={`sticky left-0 z-10 h-8 px-2 w-10 text-center text-gray-500 border-b border-gray-200 shadow-[1px_0_0_#e5e7eb] ${isSelected ? 'bg-indigo-50 group-hover:bg-indigo-100' : 'bg-white group-hover:bg-gray-50'}`}>
         <div className="flex items-center justify-center h-full">
             <span className={isSelected ? 'hidden' : 'group-hover:hidden'}>{rowNum}</span>
             <input
@@ -67,8 +66,8 @@ const NameCellContent: React.FC<{ task: Task, level: number, isEditing: boolean,
     };
 
     return (
-        <div className="flex items-center" style={{ paddingLeft: `${level * 24}px` }}>
-            <div className="w-6 h-6 flex items-center justify-center mr-1 flex-shrink-0">
+        <div className="flex items-center w-full" style={{ paddingLeft: `${level * 24}px` }}>
+            <div className="w-5 h-5 flex items-center justify-center mr-1 flex-shrink-0">
                 {hasChildren ? (
                     <button
                         onClick={(e) => { e.stopPropagation(); onToggle(task.id); }}
@@ -130,20 +129,21 @@ const DateCellContent: React.FC<{ task: Task, isEditing: boolean, onEdit: (cell:
     };
 
     return isEditing ? (
-        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1 w-full" onClick={e => e.stopPropagation()}>
            <input 
                type="date"
                value={toInputFormat(task.startDate)}
                onChange={(e) => handleDateChange('startDate', e.target.value)}
                onBlur={() => onEdit(null)}
-               className="w-full bg-transparent border-0 p-0 focus:ring-0 focus:outline-none text-sm font-medium text-gray-600"
+               className="w-full bg-transparent border-0 p-0 focus:ring-0 focus:outline-none text-sm font-medium text-gray-600 h-7"
            />
+           <span className="text-gray-400">-</span>
             <input 
                type="date"
                value={toInputFormat(task.dueDate)}
                onChange={(e) => handleDateChange('dueDate', e.target.value)}
                onBlur={() => onEdit(null)}
-               className="w-full bg-transparent border-0 p-0 focus:ring-0 focus:outline-none text-sm font-medium text-gray-600"
+               className="w-full bg-transparent border-0 p-0 focus:ring-0 focus:outline-none text-sm font-medium text-gray-600 h-7"
            />
         </div>
     ) : (
@@ -167,7 +167,7 @@ const ImpactCellContent: React.FC<{ task: Task }> = ({ task }) => (
 );
 
 const editableCellClass = (isEditing: boolean) => {
-  const base = "py-3 px-6 border-b border-gray-200 cursor-pointer h-full";
+  const base = "h-8 p-0 border-b border-gray-200 cursor-pointer";
   if (isEditing) {
     return `${base} border-b-transparent outline-blue-600 outline outline-2 -outline-offset-2`;
   }
@@ -216,10 +216,12 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
             return (
                  <td 
                     key={col.id}
-                    className={isEditable ? editableCellClass(isEditing) : "py-3 px-6 border-b border-gray-200"}
+                    className={isEditable ? editableCellClass(isEditing) : "h-8 p-0 border-b border-gray-200"}
                     onClick={isEditable && !isEditing ? () => onEditCell({ taskId: task.id, column: col.id }) : undefined}
                 >
-                    {getCellContent(col.id)}
+                    <div className="flex items-center h-full px-6">
+                      {getCellContent(col.id)}
+                    </div>
                 </td>
             )
         })}

@@ -91,7 +91,7 @@ export const StatusSelector: React.FC<{
 };
 
 export const AssigneeAvatar: React.FC<{ assignee: Assignee }> = ({ assignee }) => (
-    <div title={assignee.name} className={`w-6 h-6 rounded-full ${assignee.avatarColor} flex items-center justify-center text-white text-xs font-bold ring-2 ring-white`}>
+    <div title={assignee.name} className={`w-5 h-5 rounded-full ${assignee.avatarColor} flex items-center justify-center text-white text-xs font-bold ring-2 ring-white`}>
         {assignee.initials}
     </div>
 );
