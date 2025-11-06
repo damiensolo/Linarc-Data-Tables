@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Column, ColumnId } from '../types';
 import { GripVerticalIcon } from './Icons';
@@ -12,7 +11,8 @@ interface FieldsMenuProps {
 
 const FieldsMenu: React.FC<FieldsMenuProps> = ({ columns, setColumns, onClose, onReset }) => {
   const menuRef = useRef<HTMLDivElement>(null);
-  const [draggedItem, setDraggedItem] = useState<Column | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(null);
   
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -27,27 +27,44 @@ const FieldsMenu: React.FC<FieldsMenuProps> = ({ columns, setColumns, onClose, o
   const handleVisibilityChange = (id: ColumnId) => {
     setColumns(prev => prev.map(c => c.id === id ? { ...c, visible: !c.visible } : c));
   };
-
-  const handleDragStart = (item: Column) => {
-    setDraggedItem(item);
+  
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('text/plain', index.toString());
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedIndex(index);
   };
   
-  const handleDragOver = (e: React.DragEvent<HTMLLIElement>) => {
+  const handleDragOver = (e: React.DragEvent<HTMLLIElement>, index: number) => {
     e.preventDefault();
+    if (draggedIndex === null) return;
+    
+    const target = e.currentTarget;
+    const rect = target.getBoundingClientRect();
+    const isAfter = e.clientY > rect.top + rect.height / 2;
+    
+    setDropIndicatorIndex(isAfter ? index + 1 : index);
   };
   
-  const handleDrop = (targetItem: Column) => {
-    if (!draggedItem || draggedItem.id === targetItem.id) return;
+  const handleDrop = () => {
+    if (draggedIndex === null || dropIndicatorIndex === null || draggedIndex === dropIndicatorIndex) {
+      // no change or invalid drop
+    } else {
+        setColumns(prev => {
+            const newColumns = [...prev];
+            const [removed] = newColumns.splice(draggedIndex, 1);
+            const adjustedDropIndex = draggedIndex < dropIndicatorIndex ? dropIndicatorIndex - 1 : dropIndicatorIndex;
+            newColumns.splice(adjustedDropIndex, 0, removed);
+            return newColumns;
+        });
+    }
+    setDraggedIndex(null);
+    setDropIndicatorIndex(null);
+  };
 
-    const newColumns = [...columns];
-    const draggedIndex = newColumns.findIndex(c => c.id === draggedItem.id);
-    const targetIndex = newColumns.findIndex(c => c.id === targetItem.id);
-
-    const [removed] = newColumns.splice(draggedIndex, 1);
-    newColumns.splice(targetIndex, 0, removed);
-    
-    setColumns(newColumns);
-    setDraggedItem(null);
+  const handleDragLeave = (e: React.DragEvent) => {
+      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setDropIndicatorIndex(null);
+      }
   };
 
   return (
@@ -56,29 +73,36 @@ const FieldsMenu: React.FC<FieldsMenuProps> = ({ columns, setColumns, onClose, o
         <h3 className="text-sm font-semibold text-gray-800">Customize fields</h3>
         <p className="text-xs text-gray-500">Toggle visibility and reorder.</p>
       </div>
-      <ul className="py-2">
-        {columns.map((column) => (
-          <li
-            key={column.id}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-gray-50"
-            draggable
-            onDragStart={() => handleDragStart(column)}
-            onDragOver={handleDragOver}
-            onDrop={() => handleDrop(column)}
-          >
-            <div className="flex items-center">
-              <GripVerticalIcon className="w-5 h-5 text-gray-300 cursor-grab mr-1" />
-              <label htmlFor={`field-${column.id}`} className="text-sm text-gray-700 cursor-pointer">{column.label}</label>
-            </div>
-            <input
-              type="checkbox"
-              id={`field-${column.id}`}
-              checked={column.visible}
-              onChange={() => handleVisibilityChange(column.id)}
-              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-            />
-          </li>
+      <ul className="py-2" onDragLeave={handleDragLeave}>
+        {columns.map((column, index) => (
+          <React.Fragment key={column.id}>
+             {dropIndicatorIndex === index && (
+                <li className="h-0.5 bg-blue-500 mx-3 my-1"></li>
+              )}
+            <li
+              className={`flex items-center justify-between px-3 py-1.5 hover:bg-gray-50 ${draggedIndex === index ? 'opacity-50' : ''}`}
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDrop={handleDrop}
+            >
+              <div className="flex items-center">
+                <GripVerticalIcon className="w-5 h-5 text-gray-300 cursor-grab mr-1" />
+                <label htmlFor={`field-${column.id}`} className="text-sm text-gray-700 cursor-pointer">{column.label}</label>
+              </div>
+              <input
+                type="checkbox"
+                id={`field-${column.id}`}
+                checked={column.visible}
+                onChange={() => handleVisibilityChange(column.id)}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+            </li>
+          </React.Fragment>
         ))}
+        {dropIndicatorIndex === columns.length && (
+            <li className="h-0.5 bg-blue-500 mx-3 my-1"></li>
+        )}
       </ul>
       <div className="p-2 border-t border-gray-200">
         <button 

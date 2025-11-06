@@ -4,12 +4,12 @@ const JANE_SMITH: Assignee = { id: 'js', name: 'Jane Smith', initials: 'JS', ava
 const SAM_LEE: Assignee = { id: 'sl', name: 'Sam Lee', initials: 'SL', avatarColor: 'bg-pink-600' };
 
 export const DEFAULT_COLUMNS: Column[] = [
-  { id: 'name', label: 'Name', width: '400px', visible: true },
-  { id: 'status', label: 'Status', width: '150px', visible: true },
-  { id: 'assignee', label: 'Assignee', width: '120px', visible: true },
-  { id: 'dates', label: 'Start Date - Due Date', width: '220px', visible: true },
-  { id: 'priority', label: 'Priority', width: '120px', visible: false },
-  { id: 'impact', label: 'Impact', width: '120px', visible: false },
+  { id: 'name', label: 'Name', width: '400px', visible: true, minWidth: 200 },
+  { id: 'status', label: 'Status', width: '150px', visible: true, minWidth: 120 },
+  { id: 'assignee', label: 'Assignee', width: '120px', visible: true, minWidth: 80 },
+  { id: 'dates', label: 'Start Date - Due Date', width: '220px', visible: true, minWidth: 180 },
+  { id: 'priority', label: 'Priority', width: '120px', visible: false, minWidth: 100 },
+  { id: 'impact', label: 'Impact', width: '120px', visible: false, minWidth: 120 },
 ];
 
 export const MOCK_TASKS: Task[] = [

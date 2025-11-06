@@ -54,4 +54,5 @@ export interface Column {
   label: string;
   width: string;
   visible: boolean;
+  minWidth?: number;
 }

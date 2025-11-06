@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Task, Column, ColumnId } from '../types';
 import TableRow from './TableRow';
 
@@ -43,6 +43,8 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
   const headerRef = useRef<HTMLTableRowElement>(null);
   const activeResizerId = useRef<ColumnId | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<{ id: ColumnId; position: 'left' | 'right' } | null>(null);
+
 
   const numVisible = visibleTaskIds.length;
   const numSelected = visibleTaskIds.filter(id => selectedTaskIds.has(id)).length;
@@ -60,7 +62,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
     setColumns(prev => prev.map(c => c.id === columnId ? { ...c, width: `${newWidth}px` } : c));
   }, [setColumns]);
 
-  const onMouseDown = (columnId: ColumnId) => (e: React.MouseEvent) => {
+  const onMouseDown = (columnId: ColumnId, minWidth: number | undefined) => (e: React.MouseEvent) => {
     e.preventDefault();
     activeResizerId.current = columnId;
     
@@ -73,7 +75,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
     const onMouseMove = (moveEvent: MouseEvent) => {
       if (activeResizerId.current !== columnId) return;
       const newWidth = startWidth + (moveEvent.clientX - startPos);
-      if (newWidth > 60) { // Minimum width
+      if (newWidth > (minWidth ?? 60)) {
         handleResize(columnId, newWidth);
       }
     };
@@ -89,6 +91,63 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
     window.addEventListener('mouseup', onMouseUp);
     document.body.classList.add('grabbing');
   };
+  
+  const handleDragStartHeader = (e: React.DragEvent, columnId: ColumnId) => {
+    e.dataTransfer.setData('text/plain', columnId);
+    e.dataTransfer.effectAllowed = 'move';
+
+    const target = e.currentTarget as HTMLElement;
+    const ghost = target.cloneNode(true) as HTMLElement;
+    ghost.style.position = 'absolute';
+    ghost.style.top = '-9999px';
+    ghost.style.width = `${target.offsetWidth}px`;
+    ghost.style.height = `${target.offsetHeight}px`;
+    ghost.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+    ghost.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+    document.body.appendChild(ghost);
+    // FIX: Use nativeEvent to get offsetX and offsetY, as they don't exist on React's DragEvent.
+    e.dataTransfer.setDragImage(ghost, e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+    setTimeout(() => document.body.removeChild(ghost), 0);
+  };
+  
+  const handleDragOverHeader = (e: React.DragEvent, columnId: ColumnId) => {
+      e.preventDefault();
+      const sourceColumnId = e.dataTransfer.types.includes('text/plain') ? e.dataTransfer.getData('text/plain') : null;
+      if (sourceColumnId === columnId) {
+          setDropIndicator(null);
+          return;
+      }
+
+      const target = e.currentTarget as HTMLElement;
+      const rect = target.getBoundingClientRect();
+      const isRightHalf = e.clientX > rect.left + rect.width / 2;
+      setDropIndicator({ id: columnId, position: isRightHalf ? 'right' : 'left' });
+  };
+  
+  const handleDropHeader = (e: React.DragEvent, targetColumnId: ColumnId) => {
+      e.preventDefault();
+      const sourceColumnId = e.dataTransfer.getData('text/plain') as ColumnId;
+      setDropIndicator(null);
+
+      if (sourceColumnId && sourceColumnId !== targetColumnId) {
+          setColumns(prev => {
+              // FIX: This logic is complex, simpler to just reorder visible columns
+               const newCols = [...prev];
+               const sIndex = newCols.findIndex(c => c.id === sourceColumnId);
+               let tIndex = newCols.findIndex(c => c.id === targetColumnId);
+               
+               if(dropIndicator?.position === 'right') {
+                   tIndex++;
+               }
+               if(sIndex < tIndex) {
+                   tIndex--;
+               }
+               const [moved] = newCols.splice(sIndex, 1);
+               newCols.splice(tIndex, 0, moved);
+               return newCols;
+          });
+      }
+  };
 
   const visibleColumns = columns.filter(c => c.visible);
 
@@ -96,8 +155,8 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
     <table className="text-sm text-left text-gray-500 whitespace-nowrap border-separate border-spacing-0">
       <thead className="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 z-20">
         <tr ref={headerRef}>
-          <th scope="col" className="sticky left-0 bg-gray-50 z-30 py-2 px-2 w-10 border-b border-gray-200 shadow-[1px_0_0_#e5e7eb]">
-            <div className="flex items-center justify-center">
+          <th scope="col" className="sticky left-0 bg-gray-50 z-30 h-9 px-2 w-10 border-b border-gray-200 border-r border-gray-200">
+            <div className="flex items-center justify-center h-full">
               <input
                 type="checkbox"
                 ref={headerCheckboxRef}
@@ -113,11 +172,19 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
             <th 
               key={col.id} 
               scope="col" 
-              className="py-2 px-6 font-medium border-b border-gray-200 relative group"
+              className="h-9 px-6 font-semibold border-b border-gray-200 relative group cursor-grab align-middle"
               style={{ width: col.width, zIndex: 5 }}
+              draggable
+              onDragStart={(e) => handleDragStartHeader(e, col.id)}
+              onDragOver={(e) => handleDragOverHeader(e, col.id)}
+              onDrop={(e) => handleDropHeader(e, col.id)}
+              onDragLeave={() => setDropIndicator(null)}
             >
+              {dropIndicator?.id === col.id && (
+                <div className={`absolute top-0 h-full w-1 bg-blue-500 rounded-full ${dropIndicator.position === 'left' ? 'left-0' : 'right-0'}`} style={{ zIndex: 20 }} />
+              )}
               {col.label}
-              <Resizer onMouseDown={onMouseDown(col.id)} />
+              <Resizer onMouseDown={onMouseDown(col.id, col.minWidth)} />
             </th>
           ))}
         </tr>

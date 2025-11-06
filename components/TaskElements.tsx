@@ -25,9 +25,9 @@ const statusDotStyles: Record<Status, string> = {
 
 export const StatusDisplay: React.FC<{ status: Status }> = ({ status }) => {
   return (
-    <div className="flex items-center gap-2" title={status}>
-      <span className={`w-2.5 h-2.5 rounded-full ${statusDotStyles[status]}`}></span>
-      <span className="text-gray-600 font-medium">{status}</span>
+    <div className="flex items-center gap-2 overflow-hidden" title={status}>
+      <span className={`w-2.5 h-2.5 rounded-full ${statusDotStyles[status]} flex-shrink-0`}></span>
+      <span className="text-gray-600 font-medium truncate">{status}</span>
     </div>
   );
 };

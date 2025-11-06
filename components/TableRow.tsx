@@ -32,8 +32,14 @@ const fromInputFormat = (date: string): string => {
 
 const SelectionCell: React.FC<{ task: Task, isSelected: boolean, onToggleRow: (id: number) => void, rowNum?: number }> = ({ task, isSelected, onToggleRow, rowNum }) => {
   const taskNameId = `task-name-${task.id}`;
+  const cellClasses = `sticky left-0 z-10 h-8 px-2 w-10 text-center text-gray-500 ${
+    isSelected 
+      ? 'bg-indigo-50 group-hover:bg-indigo-100 border-t border-b border-r border-blue-400' 
+      : 'bg-white group-hover:bg-gray-50 border-b border-r border-gray-200'
+  }`;
+
   return (
-    <td className={`sticky left-0 z-10 h-8 px-2 w-10 text-center text-gray-500 border-b border-gray-200 shadow-[1px_0_0_#e5e7eb] ${isSelected ? 'bg-indigo-50 group-hover:bg-indigo-100' : 'bg-white group-hover:bg-gray-50'}`}>
+    <td className={cellClasses}>
         <div className="flex items-center justify-center h-full">
             <span className={isSelected ? 'hidden' : 'group-hover:hidden'}>{rowNum}</span>
             <input
@@ -166,14 +172,6 @@ const ImpactCellContent: React.FC<{ task: Task }> = ({ task }) => (
     task.impact ? <ImpactPill impact={task.impact} /> : null
 );
 
-const editableCellClass = (isEditing: boolean) => {
-  const base = "h-8 p-0 border-b border-gray-200 cursor-pointer";
-  if (isEditing) {
-    return `${base} border-b-transparent outline-blue-600 outline outline-2 -outline-offset-2`;
-  }
-  return `${base} hover:outline-blue-400 hover:outline hover:outline-1 hover:-outline-offset-1`;
-};
-
 const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap, selectedTaskIds, onToggleRow, editingCell, onEditCell, onUpdateTask, columns }) => {
   const hasChildren = task.children && task.children.length > 0;
   const isSelected = selectedTaskIds.has(task.id);
@@ -210,13 +208,38 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
             onToggleRow={onToggleRow}
             rowNum={rowNum}
         />
-        {columns.map(col => {
+        {columns.map((col, index) => {
             const isEditing = editingCell?.taskId === task.id && editingCell?.column === col.id;
             const isEditable = isColumnEditable(col.id);
+            const isFirst = index === 0;
+            const isLast = index === columns.length - 1;
+            
+            let cellClasses = 'h-8 p-0';
+            if (isEditable) cellClasses += ' cursor-pointer';
+
+            if (isSelected) {
+                cellClasses += ' border-t border-b border-blue-400';
+                if (isFirst) cellClasses += ' border-l';
+                if (isLast) cellClasses += ' border-r';
+            } else {
+                cellClasses += ' border-b border-gray-200';
+            }
+            
+            if (isEditable) {
+                if (isEditing) {
+                    cellClasses = cellClasses.replace('border-b border-gray-200', 'border-b-transparent');
+                    cellClasses = cellClasses.replace('border-b border-blue-400', 'border-b-transparent');
+                    cellClasses += ' outline-blue-600 outline outline-2 -outline-offset-2';
+                } else {
+                    cellClasses += ' hover:outline-blue-400 hover:outline hover:outline-1 hover:-outline-offset-1';
+                }
+            }
+            
             return (
                  <td 
                     key={col.id}
-                    className={isEditable ? editableCellClass(isEditing) : "h-8 p-0 border-b border-gray-200"}
+                    className={cellClasses}
+                    style={{ maxWidth: col.width }}
                     onClick={isEditable && !isEditing ? () => onEditCell({ taskId: task.id, column: col.id }) : undefined}
                 >
                     <div className="flex items-center h-full px-6">

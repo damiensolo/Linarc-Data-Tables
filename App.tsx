@@ -3,7 +3,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { MOCK_TASKS, DEFAULT_COLUMNS } from './constants';
 import { Task, Column } from './types';
 import ProjectTable from './components/ProjectTable';
-import { TableIcon, PlusIcon, SearchIcon, FieldsIcon } from './components/Icons';
+import { PlusIcon, SearchIcon } from './components/Icons';
 import FieldsMenu from './components/FieldsMenu';
 
 const COLUMNS_STORAGE_KEY = 'project-table-columns-config';
@@ -175,9 +175,8 @@ const App: React.FC = () => {
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center bg-gray-100 rounded-lg p-1">
               <div 
-                className={`px-3 py-1.5 text-sm font-medium flex items-center gap-2 bg-white rounded-md shadow-sm border border-gray-200 text-gray-800`}
+                className={`px-3 py-1.5 text-sm font-medium flex items-center bg-white rounded-md shadow-sm border border-gray-200 text-gray-800`}
               >
-                <TableIcon className="w-4 h-4" />
                 Table
               </div>
             </div>
@@ -196,9 +195,8 @@ const App: React.FC = () => {
               <div className="relative">
                 <button
                   onClick={() => setIsFieldsMenuOpen(prev => !prev)}
-                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-100"
+                  className="flex items-center text-gray-600 hover:text-gray-900 text-sm font-medium px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-100"
                 >
-                  <FieldsIcon className="w-4 h-4" />
                   Fields
                 </button>
                 {isFieldsMenuOpen && (
