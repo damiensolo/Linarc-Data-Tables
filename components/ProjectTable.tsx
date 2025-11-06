@@ -1,6 +1,5 @@
-
-import React, { useRef, useEffect } from 'react';
-import { Task } from '../types';
+import React, { useRef, useEffect, useCallback } from 'react';
+import { Task, Column, ColumnId } from '../types';
 import TableRow from './TableRow';
 
 interface ProjectTableProps {
@@ -14,7 +13,18 @@ interface ProjectTableProps {
   editingCell: { taskId: number; column: string } | null;
   onEditCell: (cell: { taskId: number; column: string } | null) => void;
   onUpdateTask: (taskId: number, updatedValues: Partial<Omit<Task, 'id' | 'children'>>) => void;
+  columns: Column[];
+  setColumns: React.Dispatch<React.SetStateAction<Column[]>>;
 }
+
+const Resizer: React.FC<{ onMouseDown: (e: React.MouseEvent) => void }> = ({ onMouseDown }) => (
+  <div
+    onMouseDown={onMouseDown}
+    className="absolute top-0 right-0 h-full w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-400"
+    style={{ zIndex: 10 }}
+  />
+);
+
 
 const ProjectTable: React.FC<ProjectTableProps> = ({ 
   tasks, 
@@ -26,9 +36,13 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   rowNumberMap,
   editingCell,
   onEditCell,
-  onUpdateTask
+  onUpdateTask,
+  columns,
+  setColumns,
 }) => {
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
+  const headerRef = useRef<HTMLTableRowElement>(null);
+  const activeResizerId = useRef<ColumnId | null>(null);
 
   const numVisible = visibleTaskIds.length;
   const numSelected = visibleTaskIds.filter(id => selectedTaskIds.has(id)).length;
@@ -42,10 +56,46 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
     }
   }, [isSomeSelected]);
 
+  const handleResize = useCallback((columnId: ColumnId, newWidth: number) => {
+    setColumns(prev => prev.map(c => c.id === columnId ? { ...c, width: `${newWidth}px` } : c));
+  }, [setColumns]);
+
+  const onMouseDown = (columnId: ColumnId) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    activeResizerId.current = columnId;
+    
+    const thElement = (e.target as HTMLElement).parentElement;
+    if (!thElement) return;
+
+    const startPos = e.clientX;
+    const startWidth = thElement.offsetWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (activeResizerId.current !== columnId) return;
+      const newWidth = startWidth + (moveEvent.clientX - startPos);
+      if (newWidth > 60) { // Minimum width
+        handleResize(columnId, newWidth);
+      }
+    };
+
+    const onMouseUp = () => {
+      activeResizerId.current = null;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      document.body.classList.remove('grabbing');
+    };
+    
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    document.body.classList.add('grabbing');
+  };
+
+  const visibleColumns = columns.filter(c => c.visible);
+
   return (
-    <table className="w-full text-sm text-left text-gray-500 whitespace-nowrap table-fixed border-separate border-spacing-0">
+    <table className="text-sm text-left text-gray-500 whitespace-nowrap border-separate border-spacing-0">
       <thead className="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 z-20">
-        <tr>
+        <tr ref={headerRef}>
           <th scope="col" className="sticky left-0 bg-gray-50 z-30 py-3 px-2 w-10 border-b border-gray-200 shadow-[1px_0_0_#e5e7eb]">
             <div className="flex items-center justify-center">
               <input
@@ -59,10 +109,17 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
               />
             </div>
           </th>
-          <th scope="col" className="py-3 px-6 font-medium border-b border-gray-200 w-[400px]">NAME</th>
-          <th scope="col" className="py-3 px-6 font-medium border-b border-gray-200 w-[150px]">STATUS</th>
-          <th scope="col" className="py-3 px-6 font-medium border-b border-gray-200 w-[120px]">ASSIGNEE</th>
-          <th scope="col" className="py-3 px-6 font-medium border-b border-gray-200 w-[220px]">START DATE - DUE DATE</th>
+          {visibleColumns.map((col) => (
+            <th 
+              key={col.id} 
+              scope="col" 
+              className="py-3 px-6 font-medium border-b border-gray-200 relative group"
+              style={{ width: col.width, zIndex: 5 }}
+            >
+              {col.label}
+              <Resizer onMouseDown={onMouseDown(col.id)} />
+            </th>
+          ))}
         </tr>
       </thead>
       <tbody>
@@ -71,6 +128,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
             key={task.id} 
             task={task} 
             level={0} 
+            columns={visibleColumns}
             onToggle={onToggle} 
             rowNumberMap={rowNumberMap}
             selectedTaskIds={selectedTaskIds}

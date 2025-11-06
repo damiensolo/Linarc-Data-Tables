@@ -1,14 +1,16 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Column, ColumnId } from '../types';
 import { GripVerticalIcon } from './Icons';
 
 interface FieldsMenuProps {
-  columns: { column: Column; visible: boolean }[];
-  setColumns: React.Dispatch<React.SetStateAction<{ column: Column; visible: boolean }[]>>;
+  columns: Column[];
+  setColumns: React.Dispatch<React.SetStateAction<Column[]>>;
   onClose: () => void;
+  onReset: () => void;
 }
 
-const FieldsMenu: React.FC<FieldsMenuProps> = ({ columns, setColumns, onClose }) => {
+const FieldsMenu: React.FC<FieldsMenuProps> = ({ columns, setColumns, onClose, onReset }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [draggedItem, setDraggedItem] = useState<Column | null>(null);
   
@@ -23,7 +25,7 @@ const FieldsMenu: React.FC<FieldsMenuProps> = ({ columns, setColumns, onClose })
   }, [onClose]);
 
   const handleVisibilityChange = (id: ColumnId) => {
-    setColumns(prev => prev.map(c => c.column.id === id ? { ...c, visible: !c.visible } : c));
+    setColumns(prev => prev.map(c => c.id === id ? { ...c, visible: !c.visible } : c));
   };
 
   const handleDragStart = (item: Column) => {
@@ -38,8 +40,8 @@ const FieldsMenu: React.FC<FieldsMenuProps> = ({ columns, setColumns, onClose })
     if (!draggedItem || draggedItem.id === targetItem.id) return;
 
     const newColumns = [...columns];
-    const draggedIndex = newColumns.findIndex(c => c.column.id === draggedItem.id);
-    const targetIndex = newColumns.findIndex(c => c.column.id === targetItem.id);
+    const draggedIndex = newColumns.findIndex(c => c.id === draggedItem.id);
+    const targetIndex = newColumns.findIndex(c => c.id === targetItem.id);
 
     const [removed] = newColumns.splice(draggedIndex, 1);
     newColumns.splice(targetIndex, 0, removed);
@@ -55,7 +57,7 @@ const FieldsMenu: React.FC<FieldsMenuProps> = ({ columns, setColumns, onClose })
         <p className="text-xs text-gray-500">Toggle visibility and reorder.</p>
       </div>
       <ul className="py-2">
-        {columns.filter(c => c.column.id !== 'actions').map(({ column, visible }) => (
+        {columns.map((column) => (
           <li
             key={column.id}
             className="flex items-center justify-between px-3 py-1.5 hover:bg-gray-50"
@@ -71,13 +73,21 @@ const FieldsMenu: React.FC<FieldsMenuProps> = ({ columns, setColumns, onClose })
             <input
               type="checkbox"
               id={`field-${column.id}`}
-              checked={visible}
+              checked={column.visible}
               onChange={() => handleVisibilityChange(column.id)}
               className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
             />
           </li>
         ))}
       </ul>
+      <div className="p-2 border-t border-gray-200">
+        <button 
+          onClick={onReset}
+          className="w-full text-center text-sm font-medium text-gray-700 hover:text-indigo-600 p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+        >
+          Reset to default
+        </button>
+      </div>
     </div>
   );
 };

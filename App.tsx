@@ -1,20 +1,45 @@
 
-import React, { useState, useCallback, useMemo } from 'react';
-import { MOCK_TASKS } from './constants';
-import { Task } from './types';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { MOCK_TASKS, DEFAULT_COLUMNS } from './constants';
+import { Task, Column } from './types';
 import ProjectTable from './components/ProjectTable';
-import { TableIcon, PlusIcon, SearchIcon } from './components/Icons';
+import { TableIcon, PlusIcon, SearchIcon, FieldsIcon } from './components/Icons';
+import FieldsMenu from './components/FieldsMenu';
 
+const COLUMNS_STORAGE_KEY = 'project-table-columns-config';
 
 const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTaskIds, setSelectedTaskIds] = useState(new Set<number>());
-  // FIX: Broaden the type for `column` to `string` to match the prop type in `ProjectTable`, resolving the assignment error.
   const [editingCell, setEditingCell] = useState<{ taskId: number; column: string } | null>(null);
+  const [isFieldsMenuOpen, setIsFieldsMenuOpen] = useState(false);
+
+  const [columns, setColumns] = useState<Column[]>(() => {
+    try {
+      const savedColumns = localStorage.getItem(COLUMNS_STORAGE_KEY);
+      return savedColumns ? JSON.parse(savedColumns) : DEFAULT_COLUMNS;
+    } catch (error) {
+      console.error("Failed to parse columns from localStorage", error);
+      return DEFAULT_COLUMNS;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(columns));
+    } catch (error) {
+      console.error("Failed to save columns to localStorage", error);
+    }
+  }, [columns]);
 
   const onSelectionChange = (selectedRowIds: string[]) => {
     console.log('onSelectionChange emitted:', selectedRowIds);
+  };
+  
+  const handleResetColumns = () => {
+    setColumns(DEFAULT_COLUMNS);
+    setIsFieldsMenuOpen(false);
   };
 
   const handleUpdateTask = useCallback((taskId: number, updatedValues: Partial<Omit<Task, 'id' | 'children'>>) => {
@@ -33,7 +58,7 @@ const App: React.FC = () => {
   }, []);
 
   const toggleTaskExpansion = useCallback((taskId: number) => {
-    setEditingCell(null); // Exit editing mode when toggling expansion
+    setEditingCell(null);
     const updateExpansion = (currentTasks: Task[]): Task[] => {
       return currentTasks.map(task => {
         if (task.id === taskId) {
@@ -73,7 +98,7 @@ const App: React.FC = () => {
             if (selfMatch || childrenMatch) {
                 result.push({
                     ...task,
-                    isExpanded: childrenMatch || task.isExpanded, // Auto-expand parent if a child matches
+                    isExpanded: childrenMatch || task.isExpanded,
                     children: filteredChildren,
                 });
             }
@@ -167,10 +192,31 @@ const App: React.FC = () => {
                 />
             </div>
           </div>
+           <div className="flex items-center gap-2">
+              <div className="relative">
+                <button
+                  onClick={() => setIsFieldsMenuOpen(prev => !prev)}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-100"
+                >
+                  <FieldsIcon className="w-4 h-4" />
+                  Fields
+                </button>
+                {isFieldsMenuOpen && (
+                  <FieldsMenu 
+                    columns={columns}
+                    setColumns={setColumns}
+                    onClose={() => setIsFieldsMenuOpen(false)}
+                    onReset={handleResetColumns}
+                  />
+                )}
+              </div>
+            </div>
         </header>
         <main className="overflow-auto flex-grow">
           <ProjectTable 
               tasks={filteredTasks} 
+              columns={columns}
+              setColumns={setColumns}
               onToggle={toggleTaskExpansion} 
               selectedTaskIds={selectedTaskIds}
               visibleTaskIds={visibleTaskIds}

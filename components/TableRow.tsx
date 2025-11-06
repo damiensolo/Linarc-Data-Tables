@@ -1,7 +1,8 @@
+
 import React, { Fragment, useEffect, useRef } from 'react';
-import { Task, Status } from '../types';
+import { Task, Status, Priority, Impact, Column, ColumnId } from '../types';
 import { ChevronRightIcon, ChevronDownIcon, DocumentIcon } from './Icons';
-import { StatusDisplay, AssigneeAvatar, StatusSelector } from './TaskElements';
+import { StatusDisplay, AssigneeAvatar, StatusSelector, PrioritySelector, ImpactPill } from './TaskElements';
 
 interface TableRowProps {
   task: Task;
@@ -13,6 +14,7 @@ interface TableRowProps {
   editingCell: { taskId: number; column: string } | null;
   onEditCell: (cell: { taskId: number; column: string } | null) => void;
   onUpdateTask: (taskId: number, updatedValues: Partial<Omit<Task, 'id' | 'children'>>) => void;
+  columns: Column[];
 }
 
 const toInputFormat = (date: string): string => {
@@ -27,15 +29,7 @@ const fromInputFormat = (date: string): string => {
   return `${day}/${month}/${year}`;
 };
 
-// --- Cell Components ---
-
-const editableCellClass = (isEditing: boolean) => {
-  const base = "py-3 px-6 border-b border-gray-200 cursor-pointer h-full";
-  if (isEditing) {
-    return `${base} border-b-transparent outline-blue-600 outline outline-2 -outline-offset-2`;
-  }
-  return `${base} hover:outline-blue-400 hover:outline hover:outline-1 hover:-outline-offset-1`;
-};
+// --- Cell Content Components ---
 
 const SelectionCell: React.FC<{ task: Task, isSelected: boolean, onToggleRow: (id: number) => void, rowNum?: number }> = ({ task, isSelected, onToggleRow, rowNum }) => {
   const taskNameId = `task-name-${task.id}`;
@@ -55,7 +49,7 @@ const SelectionCell: React.FC<{ task: Task, isSelected: boolean, onToggleRow: (i
   );
 };
 
-const NameCell: React.FC<{ task: Task, level: number, isEditing: boolean, onEdit: (cell: { taskId: number; column: string } | null) => void, onUpdateTask: TableRowProps['onUpdateTask'], onToggle: (id: number) => void }> = ({ task, level, isEditing, onEdit, onUpdateTask, onToggle }) => {
+const NameCellContent: React.FC<{ task: Task, level: number, isEditing: boolean, onEdit: (cell: { taskId: number; column: string } | null) => void, onUpdateTask: TableRowProps['onUpdateTask'], onToggle: (id: number) => void }> = ({ task, level, isEditing, onEdit, onUpdateTask, onToggle }) => {
     const hasChildren = task.children && task.children.length > 0;
     const nameInputRef = useRef<HTMLInputElement>(null);
     const taskNameId = `task-name-${task.id}`;
@@ -73,121 +67,139 @@ const NameCell: React.FC<{ task: Task, level: number, isEditing: boolean, onEdit
     };
 
     return (
-        <td
-            className={editableCellClass(isEditing)}
-            style={{ width: '400px' }}
-            onClick={() => onEdit({ taskId: task.id, column: 'name' })}
-        >
-            <div className="flex items-center" style={{ paddingLeft: `${level * 24}px` }}>
-                <div className="w-6 h-6 flex items-center justify-center mr-1 flex-shrink-0">
-                    {hasChildren ? (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onToggle(task.id); }}
-                            className="text-gray-400 hover:text-gray-800"
-                            aria-expanded={task.isExpanded}
-                        >
-                            {task.isExpanded ? <ChevronDownIcon className="w-4 h-4" /> : <ChevronRightIcon className="w-4 h-4" />}
-                        </button>
-                    ) : (
-                        <DocumentIcon className="w-4 h-4 text-gray-400"/>
-                    )}
-                </div>
-                {isEditing ? (
-                    <input
-                        ref={nameInputRef}
-                        type="text"
-                        value={task.name}
-                        onChange={handleNameChange}
-                        onBlur={() => onEdit(null)}
-                        onKeyDown={handleNameKeyDown}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-full bg-transparent border-0 p-0 focus:ring-0 focus:outline-none text-gray-800 font-medium"
-                    />
+        <div className="flex items-center" style={{ paddingLeft: `${level * 24}px` }}>
+            <div className="w-6 h-6 flex items-center justify-center mr-1 flex-shrink-0">
+                {hasChildren ? (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onToggle(task.id); }}
+                        className="text-gray-400 hover:text-gray-800"
+                        aria-expanded={task.isExpanded}
+                    >
+                        {task.isExpanded ? <ChevronDownIcon className="w-4 h-4" /> : <ChevronRightIcon className="w-4 h-4" />}
+                    </button>
                 ) : (
-                    <span id={taskNameId} className="truncate text-gray-800 font-medium" title={task.name}>{task.name}</span>
+                    <DocumentIcon className="w-4 h-4 text-gray-400"/>
                 )}
             </div>
-        </td>
+            {isEditing ? (
+                <input
+                    ref={nameInputRef}
+                    type="text"
+                    value={task.name}
+                    onChange={handleNameChange}
+                    onBlur={() => onEdit(null)}
+                    onKeyDown={handleNameKeyDown}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full bg-transparent border-0 p-0 focus:ring-0 focus:outline-none text-gray-800 font-medium"
+                />
+            ) : (
+                <span id={taskNameId} className="truncate text-gray-800 font-medium" title={task.name}>{task.name}</span>
+            )}
+        </div>
     );
 };
 
-const StatusCell: React.FC<{ task: Task, isEditing: boolean, onEdit: (cell: { taskId: number; column: string } | null) => void, onUpdateTask: TableRowProps['onUpdateTask'] }> = ({ task, isEditing, onEdit, onUpdateTask }) => {
+const StatusCellContent: React.FC<{ task: Task, isEditing: boolean, onEdit: (cell: { taskId: number; column: string } | null) => void, onUpdateTask: TableRowProps['onUpdateTask'] }> = ({ task, isEditing, onEdit, onUpdateTask }) => {
     const handleStatusChange = (newStatus: Status) => {
         onUpdateTask(task.id, { status: newStatus });
         onEdit(null);
     };
 
-    return (
-        <td
-            className={`${editableCellClass(isEditing)} relative`}
-            style={{ width: '150px' }}
-            onClick={() => !isEditing && onEdit({ taskId: task.id, column: 'status' })}
-        >
-            {isEditing ? (
-                <StatusSelector 
-                    currentStatus={task.status} 
-                    onChange={handleStatusChange} 
-                    onBlur={() => onEdit(null)}
-                />
-            ) : (
-                <StatusDisplay status={task.status} />
-            )}
-        </td>
+    return isEditing ? (
+        <StatusSelector 
+            currentStatus={task.status} 
+            onChange={handleStatusChange} 
+            onBlur={() => onEdit(null)}
+        />
+    ) : (
+        <StatusDisplay status={task.status} />
     );
 };
 
-const AssigneeCell: React.FC<{ task: Task }> = ({ task }) => (
-    <td className="py-3 px-6 border-b border-gray-200" style={{ width: '120px' }}>
-        <div className="flex items-center -space-x-2 overflow-hidden" title={task.assignees.map(a => a.name).join(', ')}>
-            {task.assignees.map(a => <AssigneeAvatar key={a.id} assignee={a} />)}
-        </div>
-    </td>
+const AssigneeCellContent: React.FC<{ task: Task }> = ({ task }) => (
+    <div className="flex items-center -space-x-2 overflow-hidden" title={task.assignees.map(a => a.name).join(', ')}>
+        {task.assignees.map(a => <AssigneeAvatar key={a.id} assignee={a} />)}
+    </div>
 );
 
-const DateCell: React.FC<{ task: Task, isEditing: boolean, onEdit: (cell: { taskId: number; column: string } | null) => void, onUpdateTask: TableRowProps['onUpdateTask'] }> = ({ task, isEditing, onEdit, onUpdateTask }) => {
+const DateCellContent: React.FC<{ task: Task, isEditing: boolean, onEdit: (cell: { taskId: number; column: string } | null) => void, onUpdateTask: TableRowProps['onUpdateTask'] }> = ({ task, isEditing, onEdit, onUpdateTask }) => {
     const handleDateChange = (field: 'startDate' | 'dueDate', value: string) => {
         if (value) {
             onUpdateTask(task.id, { [field]: fromInputFormat(value) });
         }
     };
 
-    return (
-        <td
-            className={editableCellClass(isEditing)}
-            style={{ width: '220px' }}
-            onClick={() => onEdit({ taskId: task.id, column: 'dates' })}
-        >
-            {isEditing ? (
-                 <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                    <input 
-                        type="date"
-                        value={toInputFormat(task.startDate)}
-                        onChange={(e) => handleDateChange('startDate', e.target.value)}
-                        onBlur={() => onEdit(null)}
-                        className="w-full bg-transparent border-0 p-0 focus:ring-0 focus:outline-none text-sm font-medium text-gray-600"
-                    />
-                     <input 
-                        type="date"
-                        value={toInputFormat(task.dueDate)}
-                        onChange={(e) => handleDateChange('dueDate', e.target.value)}
-                        onBlur={() => onEdit(null)}
-                        className="w-full bg-transparent border-0 p-0 focus:ring-0 focus:outline-none text-sm font-medium text-gray-600"
-                    />
-                 </div>
-            ) : (
-                <div className="truncate font-medium text-gray-600" title={`${task.startDate} - ${task.dueDate}`}>
-                    {`${task.startDate} - ${task.dueDate}`}
-                </div>
-            )}
-        </td>
-    );
+    return isEditing ? (
+        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+           <input 
+               type="date"
+               value={toInputFormat(task.startDate)}
+               onChange={(e) => handleDateChange('startDate', e.target.value)}
+               onBlur={() => onEdit(null)}
+               className="w-full bg-transparent border-0 p-0 focus:ring-0 focus:outline-none text-sm font-medium text-gray-600"
+           />
+            <input 
+               type="date"
+               value={toInputFormat(task.dueDate)}
+               onChange={(e) => handleDateChange('dueDate', e.target.value)}
+               onBlur={() => onEdit(null)}
+               className="w-full bg-transparent border-0 p-0 focus:ring-0 focus:outline-none text-sm font-medium text-gray-600"
+           />
+        </div>
+    ) : (
+       <div className="truncate font-medium text-gray-600" title={`${task.startDate} - ${task.dueDate}`}>
+           {`${task.startDate} - ${task.dueDate}`}
+       </div>
+   );
 };
 
+const PriorityCellContent: React.FC<{ task: Task, onUpdateTask: TableRowProps['onUpdateTask'] }> = ({ task, onUpdateTask }) => {
+  const handlePriorityChange = (priority: Priority) => {
+    onUpdateTask(task.id, { priority });
+  };
+  return (
+    <PrioritySelector taskId={task.id} currentPriority={task.priority} onPriorityChange={(_, p) => handlePriorityChange(p)} />
+  );
+};
 
-const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap, selectedTaskIds, onToggleRow, editingCell, onEditCell, onUpdateTask }) => {
+const ImpactCellContent: React.FC<{ task: Task }> = ({ task }) => (
+    task.impact ? <ImpactPill impact={task.impact} /> : null
+);
+
+const editableCellClass = (isEditing: boolean) => {
+  const base = "py-3 px-6 border-b border-gray-200 cursor-pointer h-full";
+  if (isEditing) {
+    return `${base} border-b-transparent outline-blue-600 outline outline-2 -outline-offset-2`;
+  }
+  return `${base} hover:outline-blue-400 hover:outline hover:outline-1 hover:-outline-offset-1`;
+};
+
+const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap, selectedTaskIds, onToggleRow, editingCell, onEditCell, onUpdateTask, columns }) => {
   const hasChildren = task.children && task.children.length > 0;
   const isSelected = selectedTaskIds.has(task.id);
   const rowNum = rowNumberMap.get(task.id);
+
+  const getCellContent = (columnId: ColumnId) => {
+      const isEditing = editingCell?.taskId === task.id && editingCell?.column === columnId;
+      switch (columnId) {
+          case 'name':
+              return <NameCellContent task={task} level={level} isEditing={isEditing} onEdit={onEditCell} onUpdateTask={onUpdateTask} onToggle={onToggle} />;
+          case 'status':
+              return <StatusCellContent task={task} isEditing={isEditing} onEdit={onEditCell} onUpdateTask={onUpdateTask} />;
+          case 'assignee':
+              return <AssigneeCellContent task={task} />;
+          case 'dates':
+              return <DateCellContent task={task} isEditing={isEditing} onEdit={onEditCell} onUpdateTask={onUpdateTask} />;
+          case 'priority':
+              return <PriorityCellContent task={task} onUpdateTask={onUpdateTask} />;
+          case 'impact':
+              return <ImpactCellContent task={task} />;
+          default:
+              return null;
+      }
+  };
+  
+  const isColumnEditable = (columnId: ColumnId) => ['name', 'status', 'dates', 'priority'].includes(columnId);
 
   return (
     <Fragment>
@@ -198,27 +210,19 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
             onToggleRow={onToggleRow}
             rowNum={rowNum}
         />
-        <NameCell
-            task={task}
-            level={level}
-            isEditing={editingCell?.taskId === task.id && editingCell?.column === 'name'}
-            onEdit={onEditCell}
-            onUpdateTask={onUpdateTask}
-            onToggle={onToggle}
-        />
-        <StatusCell
-            task={task}
-            isEditing={editingCell?.taskId === task.id && editingCell?.column === 'status'}
-            onEdit={onEditCell}
-            onUpdateTask={onUpdateTask}
-        />
-        <AssigneeCell task={task} />
-        <DateCell
-            task={task}
-            isEditing={editingCell?.taskId === task.id && editingCell?.column === 'dates'}
-            onEdit={onEditCell}
-            onUpdateTask={onUpdateTask}
-        />
+        {columns.map(col => {
+            const isEditing = editingCell?.taskId === task.id && editingCell?.column === col.id;
+            const isEditable = isColumnEditable(col.id);
+            return (
+                 <td 
+                    key={col.id}
+                    className={isEditable ? editableCellClass(isEditing) : "py-3 px-6 border-b border-gray-200"}
+                    onClick={isEditable && !isEditing ? () => onEditCell({ taskId: task.id, column: col.id }) : undefined}
+                >
+                    {getCellContent(col.id)}
+                </td>
+            )
+        })}
       </tr>
       {hasChildren && task.isExpanded && task.children?.map(child => (
         <TableRow 
@@ -232,6 +236,7 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
             editingCell={editingCell}
             onEditCell={onEditCell}
             onUpdateTask={onUpdateTask}
+            columns={columns}
         />
       ))}
     </Fragment>

@@ -47,10 +47,11 @@ export interface Task {
 }
 
 // FIX: Add ColumnId and Column types for FieldsMenu component.
-export type ColumnId = 'name' | 'status' | 'assignee' | 'dates' | 'priority' | 'impact' | 'actions';
+export type ColumnId = 'name' | 'status' | 'assignee' | 'dates' | 'priority' | 'impact';
 
 export interface Column {
   id: ColumnId;
   label: string;
   width: string;
+  visible: boolean;
 }

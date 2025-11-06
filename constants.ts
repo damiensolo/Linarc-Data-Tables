@@ -1,7 +1,16 @@
-import { Task, Status, Assignee } from './types';
+import { Task, Status, Assignee, Column } from './types';
 
 const JANE_SMITH: Assignee = { id: 'js', name: 'Jane Smith', initials: 'JS', avatarColor: 'bg-purple-600' };
 const SAM_LEE: Assignee = { id: 'sl', name: 'Sam Lee', initials: 'SL', avatarColor: 'bg-pink-600' };
+
+export const DEFAULT_COLUMNS: Column[] = [
+  { id: 'name', label: 'Name', width: '400px', visible: true },
+  { id: 'status', label: 'Status', width: '150px', visible: true },
+  { id: 'assignee', label: 'Assignee', width: '120px', visible: true },
+  { id: 'dates', label: 'Start Date - Due Date', width: '220px', visible: true },
+  { id: 'priority', label: 'Priority', width: '120px', visible: false },
+  { id: 'impact', label: 'Impact', width: '120px', visible: false },
+];
 
 export const MOCK_TASKS: Task[] = [
   {
