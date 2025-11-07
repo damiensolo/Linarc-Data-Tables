@@ -17,11 +17,22 @@ interface ViewTabsProps {
 const TabMenu: React.FC<{ view: View, isDefault: boolean, onRename: () => void, onDelete: () => void, onSetDefault: () => void, canDelete: boolean }> = 
 ({ view, isDefault, onRename, onDelete, onSetDefault, canDelete }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuWrapperRef = useRef<HTMLDivElement>(null);
+  const [positionClass, setPositionClass] = useState('left-0');
 
   useEffect(() => {
+    if (isOpen && menuWrapperRef.current) {
+      const rect = menuWrapperRef.current.getBoundingClientRect();
+      // w-40 is 10rem = 160px. Add a buffer for scrollbars etc.
+      if (rect.left + 160 > window.innerWidth) {
+        setPositionClass('right-0');
+      } else {
+        setPositionClass('left-0');
+      }
+    }
+    
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      if (menuWrapperRef.current && !menuWrapperRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -29,13 +40,14 @@ const TabMenu: React.FC<{ view: View, isDefault: boolean, onRename: () => void, 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
+
   return (
-    <div ref={menuRef} className="relative">
+    <div ref={menuWrapperRef} className="relative">
       <button onClick={() => setIsOpen(prev => !prev)} className="p-1 rounded-md hover:bg-gray-200">
         <MoreHorizontalIcon className="w-4 h-4 text-gray-500" />
       </button>
       {isOpen && (
-        <div className="absolute top-full right-0 mt-1 w-40 bg-white rounded-md shadow-lg border border-gray-200 z-30">
+        <div className={`absolute top-full mt-1 w-40 bg-white rounded-md shadow-lg border border-gray-200 z-30 ${positionClass}`}>
           <ul className="py-1">
             <li className="px-3 py-1.5 text-sm text-gray-700">
               {isDefault ? 'Default view' : 'Set as default'}

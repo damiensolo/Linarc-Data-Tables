@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { MOCK_TASKS, DEFAULT_COLUMNS } from './constants';
 import { Task, Column, View } from './types';
@@ -207,8 +206,8 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 font-sans p-4 sm:p-6 lg:p-8">
-      <div className="max-w-full mx-auto bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{height: 'calc(100vh - 4rem)'}}>
-        <header className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-shrink-0">
+      <div className="max-w-full mx-auto bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col" style={{height: 'calc(100vh - 4rem)'}}>
+        <header className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-shrink-0 relative z-40">
           <div className="flex items-center gap-2 flex-wrap">
             <ViewTabs
               views={views}
