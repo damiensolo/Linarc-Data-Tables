@@ -15,6 +15,7 @@ interface ProjectTableProps {
   onUpdateTask: (taskId: number, updatedValues: Partial<Omit<Task, 'id' | 'children'>>) => void;
   columns: Column[];
   setColumns: React.Dispatch<React.SetStateAction<Column[]>>;
+  isScrolled: boolean;
 }
 
 const Resizer: React.FC<{ onMouseDown: (e: React.MouseEvent) => void }> = ({ onMouseDown }) => (
@@ -39,6 +40,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   onUpdateTask,
   columns,
   setColumns,
+  isScrolled,
 }) => {
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
   const headerRef = useRef<HTMLTableRowElement>(null);
@@ -155,7 +157,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
     <table className="text-sm text-left text-gray-500 whitespace-nowrap border-separate border-spacing-0">
       <thead className="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 z-20">
         <tr ref={headerRef}>
-          <th scope="col" className="sticky left-0 bg-gray-50 z-30 h-9 px-2 w-10 border-b border-gray-200 border-r border-gray-200">
+          <th scope="col" className={`sticky left-0 bg-gray-50 z-30 h-9 px-2 w-10 border-b border-gray-200 border-r border-gray-200 transition-shadow duration-200 ${isScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.05)]' : ''}`}>
             <div className="flex items-center justify-center h-full">
               <input
                 type="checkbox"
@@ -203,6 +205,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
             editingCell={editingCell}
             onEditCell={onEditCell}
             onUpdateTask={onUpdateTask}
+            isScrolled={isScrolled}
           />
         ))}
       </tbody>

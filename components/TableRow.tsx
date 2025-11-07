@@ -14,6 +14,7 @@ interface TableRowProps {
   onEditCell: (cell: { taskId: number; column: string } | null) => void;
   onUpdateTask: (taskId: number, updatedValues: Partial<Omit<Task, 'id' | 'children'>>) => void;
   columns: Column[];
+  isScrolled: boolean;
 }
 
 const toInputFormat = (date: string): string => {
@@ -30,13 +31,13 @@ const fromInputFormat = (date: string): string => {
 
 // --- Cell Content Components ---
 
-const SelectionCell: React.FC<{ task: Task, isSelected: boolean, onToggleRow: (id: number) => void, rowNum?: number }> = ({ task, isSelected, onToggleRow, rowNum }) => {
+const SelectionCell: React.FC<{ task: Task, isSelected: boolean, onToggleRow: (id: number) => void, rowNum?: number, isScrolled: boolean }> = ({ task, isSelected, onToggleRow, rowNum, isScrolled }) => {
   const taskNameId = `task-name-${task.id}`;
-  const cellClasses = `sticky left-0 z-10 h-8 px-2 w-10 text-center text-gray-500 border-b border-r border-gray-200 ${
+  const cellClasses = `sticky left-0 z-10 h-8 px-2 w-10 text-center text-gray-500 border-b border-r border-gray-200 transition-shadow duration-200 ${
     isSelected 
       ? 'bg-indigo-50 group-hover:bg-indigo-100' 
       : 'bg-white group-hover:bg-gray-50'
-  }`;
+  } ${isScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.05)]' : ''}`;
 
   return (
     <td className={cellClasses}>
@@ -159,7 +160,7 @@ const DateCellContent: React.FC<{ task: Task, isEditing: boolean, onEdit: (cell:
    );
 };
 
-const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap, selectedTaskIds, onToggleRow, editingCell, onEditCell, onUpdateTask, columns }) => {
+const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap, selectedTaskIds, onToggleRow, editingCell, onEditCell, onUpdateTask, columns, isScrolled }) => {
   const isSelected = selectedTaskIds.has(task.id);
   const rowNum = rowNumberMap.get(task.id);
 
@@ -189,6 +190,7 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
             isSelected={isSelected} 
             onToggleRow={onToggleRow}
             rowNum={rowNum}
+            isScrolled={isScrolled}
         />
         {columns.map((col) => {
             const isEditing = editingCell?.taskId === task.id && editingCell?.column === col.id;
@@ -235,6 +237,7 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
             onEditCell={onEditCell}
             onUpdateTask={onUpdateTask}
             columns={columns}
+            isScrolled={isScrolled}
         />
       ))}
     </Fragment>

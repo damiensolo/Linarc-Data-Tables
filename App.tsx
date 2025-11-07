@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { MOCK_TASKS, DEFAULT_COLUMNS } from './constants';
 import { Task, Column, View } from './types';
 import ProjectTable from './components/ProjectTable';
@@ -19,6 +19,30 @@ const App: React.FC = () => {
   const [isFieldsMenuOpen, setIsFieldsMenuOpen] = useState(false);
   const [isCreateViewModalOpen, setIsCreateViewModalOpen] = useState(false);
   const [renamingView, setRenamingView] = useState<View | null>(null);
+  const mainContainerRef = useRef<HTMLElement>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const container = mainContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      // Add a small threshold to prevent shadow on minimal scroll
+      setIsScrolled(container.scrollLeft > 1);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll(); // Initial check
+
+    // Also check on window resize when scrollbar may appear/disappear
+    const observer = new ResizeObserver(handleScroll);
+    observer.observe(container);
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      observer.disconnect();
+    };
+  }, []);
 
   const [views, setViews] = useState<View[]>(() => {
     try {
@@ -250,7 +274,7 @@ const App: React.FC = () => {
             </div>
           </div>
         </header>
-        <main className="overflow-auto flex-grow">
+        <main ref={mainContainerRef} className="overflow-auto flex-grow">
           {activeView && <ProjectTable 
               tasks={filteredTasks} 
               columns={activeView.columns}
@@ -264,6 +288,7 @@ const App: React.FC = () => {
               editingCell={editingCell}
               onEditCell={setEditingCell}
               onUpdateTask={handleUpdateTask}
+              isScrolled={isScrolled}
           />}
         </main>
         <footer className="p-2 border-t border-gray-200 flex-shrink-0">
