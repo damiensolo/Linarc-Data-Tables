@@ -32,10 +32,10 @@ const fromInputFormat = (date: string): string => {
 
 const SelectionCell: React.FC<{ task: Task, isSelected: boolean, onToggleRow: (id: number) => void, rowNum?: number }> = ({ task, isSelected, onToggleRow, rowNum }) => {
   const taskNameId = `task-name-${task.id}`;
-  const cellClasses = `sticky left-0 z-10 h-8 px-2 w-10 text-center text-gray-500 ${
+  const cellClasses = `sticky left-0 z-10 h-8 px-2 w-10 text-center text-gray-500 border-b border-r border-gray-200 ${
     isSelected 
-      ? 'bg-indigo-50 group-hover:bg-indigo-100 border-t border-b border-r border-blue-400' 
-      : 'bg-white group-hover:bg-gray-50 border-b border-r border-gray-200'
+      ? 'bg-indigo-50 group-hover:bg-indigo-100' 
+      : 'bg-white group-hover:bg-gray-50'
   }`;
 
   return (
@@ -190,27 +190,18 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
             onToggleRow={onToggleRow}
             rowNum={rowNum}
         />
-        {columns.map((col, index) => {
+        {columns.map((col) => {
             const isEditing = editingCell?.taskId === task.id && editingCell?.column === col.id;
             const isEditable = isColumnEditable(col.id);
-            const isFirst = index === 0;
-            const isLast = index === columns.length - 1;
             
             let cellClasses = 'h-8 p-0';
             if (isEditable) cellClasses += ' cursor-pointer';
 
-            if (isSelected) {
-                cellClasses += ' border-t border-b border-blue-400';
-                if (isFirst) cellClasses += ' border-l';
-                if (isLast) cellClasses += ' border-r';
-            } else {
-                cellClasses += ' border-b border-gray-200';
-            }
+            cellClasses += ' border-b border-gray-200';
             
             if (isEditable) {
                 if (isEditing) {
                     cellClasses = cellClasses.replace('border-b border-gray-200', 'border-b-transparent');
-                    cellClasses = cellClasses.replace('border-b border-blue-400', 'border-b-transparent');
                     cellClasses += ' outline-blue-600 outline outline-2 -outline-offset-2';
                 } else {
                     cellClasses += ' hover:outline-blue-400 hover:outline hover:outline-1 hover:-outline-offset-1';
