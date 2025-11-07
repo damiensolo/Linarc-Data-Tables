@@ -1,12 +1,16 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { MOCK_TASKS, DEFAULT_COLUMNS } from './constants';
-import { Task, Column } from './types';
+import { Task, Column, View } from './types';
 import ProjectTable from './components/ProjectTable';
 import { PlusIcon, SearchIcon } from './components/Icons';
 import FieldsMenu from './components/FieldsMenu';
+import ViewTabs from './components/ViewTabs';
+import CreateViewModal from './components/CreateViewModal';
 
-const COLUMNS_STORAGE_KEY = 'project-table-columns-config';
+const VIEWS_STORAGE_KEY = 'project-table-views';
+const ACTIVE_VIEW_STORAGE_KEY = 'project-table-active-view-id';
+const DEFAULT_VIEW_ID = 'project-table-default-view-id';
 
 const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
@@ -14,32 +18,87 @@ const App: React.FC = () => {
   const [selectedTaskIds, setSelectedTaskIds] = useState(new Set<number>());
   const [editingCell, setEditingCell] = useState<{ taskId: number; column: string } | null>(null);
   const [isFieldsMenuOpen, setIsFieldsMenuOpen] = useState(false);
+  const [isCreateViewModalOpen, setIsCreateViewModalOpen] = useState(false);
+  const [renamingView, setRenamingView] = useState<View | null>(null);
 
-  const [columns, setColumns] = useState<Column[]>(() => {
+  const [views, setViews] = useState<View[]>(() => {
     try {
-      const savedColumns = localStorage.getItem(COLUMNS_STORAGE_KEY);
-      return savedColumns ? JSON.parse(savedColumns) : DEFAULT_COLUMNS;
+      const savedViews = localStorage.getItem(VIEWS_STORAGE_KEY);
+      if (savedViews) return JSON.parse(savedViews);
     } catch (error) {
-      console.error("Failed to parse columns from localStorage", error);
-      return DEFAULT_COLUMNS;
+      console.error("Failed to parse views from localStorage", error);
     }
+    return [{ id: 'default', name: 'Table', columns: DEFAULT_COLUMNS }];
+  });
+
+  const [activeViewId, setActiveViewId] = useState<string>(() => {
+    const savedActiveId = localStorage.getItem(ACTIVE_VIEW_STORAGE_KEY);
+    const defaultViewId = localStorage.getItem(DEFAULT_VIEW_ID);
+    return savedActiveId || defaultViewId || views[0]?.id || 'default';
   });
 
   useEffect(() => {
     try {
-      localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(columns));
+      localStorage.setItem(VIEWS_STORAGE_KEY, JSON.stringify(views));
     } catch (error) {
-      console.error("Failed to save columns to localStorage", error);
+      console.error("Failed to save views to localStorage", error);
     }
-  }, [columns]);
+  }, [views]);
+
+  useEffect(() => {
+    localStorage.setItem(ACTIVE_VIEW_STORAGE_KEY, activeViewId);
+  }, [activeViewId]);
 
   const onSelectionChange = (selectedRowIds: string[]) => {
     console.log('onSelectionChange emitted:', selectedRowIds);
   };
   
+  const activeView = useMemo(() => views.find(v => v.id === activeViewId) || views[0], [views, activeViewId]);
+  
+  const handleSetColumns = (newColumnsFunc: React.SetStateAction<Column[]>) => {
+    setViews(prevViews => prevViews.map(view => {
+      if (view.id === activeViewId) {
+        const newColumns = typeof newColumnsFunc === 'function' ? newColumnsFunc(view.columns) : newColumnsFunc;
+        return { ...view, columns: newColumns };
+      }
+      return view;
+    }));
+  };
+  
   const handleResetColumns = () => {
-    setColumns(DEFAULT_COLUMNS);
+    handleSetColumns(DEFAULT_COLUMNS);
     setIsFieldsMenuOpen(false);
+  };
+
+  const handleCreateView = (name: string) => {
+    const newView: View = {
+      id: `view_${Date.now()}`,
+      name,
+      columns: activeView.columns, // Clone columns from the current view
+    };
+    setViews(prev => [...prev, newView]);
+    setActiveViewId(newView.id);
+    setIsCreateViewModalOpen(false);
+  };
+
+  const handleRenameView = (newName: string) => {
+    if (!renamingView) return;
+    setViews(prev => prev.map(v => v.id === renamingView.id ? { ...v, name: newName } : v));
+    setRenamingView(null);
+  };
+
+  const handleDeleteView = (viewId: string) => {
+    if (views.length <= 1) return; // Don't delete the last view
+    setViews(prev => prev.filter(v => v.id !== viewId));
+    if (activeViewId === viewId) {
+      const defaultViewId = localStorage.getItem(DEFAULT_VIEW_ID);
+      setActiveViewId(defaultViewId && defaultViewId !== viewId ? defaultViewId : views.find(v => v.id !== viewId)!.id);
+    }
+  };
+
+  const handleSetDefaultView = (viewId: string) => {
+    localStorage.setItem(DEFAULT_VIEW_ID, viewId);
+    // This is just a marker, no state change needed, but you could add a visual indicator.
   };
 
   const handleUpdateTask = useCallback((taskId: number, updatedValues: Partial<Omit<Task, 'id' | 'children'>>) => {
@@ -74,9 +133,7 @@ const App: React.FC = () => {
   }, []);
 
   const filteredTasks = useMemo(() => {
-    if (!searchQuery) {
-        return tasks;
-    }
+    if (!searchQuery) return tasks;
     const lowercasedQuery = searchQuery.toLowerCase();
 
     const filterRecursively = (taskArray: Task[]): Task[] => {
@@ -87,20 +144,12 @@ const App: React.FC = () => {
 
             if (task.children) {
                 filteredChildren = filterRecursively(task.children);
-                if (filteredChildren.length > 0) {
-                    childrenMatch = true;
-                }
+                if (filteredChildren.length > 0) childrenMatch = true;
             }
-
-            const selfMatch = task.name.toLowerCase().includes(lowercasedQuery) ||
-                              task.assignees.some(a => a.name.toLowerCase().includes(lowercasedQuery));
+            const selfMatch = task.name.toLowerCase().includes(lowercasedQuery) || task.assignees.some(a => a.name.toLowerCase().includes(lowercasedQuery));
 
             if (selfMatch || childrenMatch) {
-                result.push({
-                    ...task,
-                    isExpanded: childrenMatch || task.isExpanded,
-                    children: filteredChildren,
-                });
+                result.push({ ...task, isExpanded: childrenMatch || task.isExpanded, children: filteredChildren });
             }
         }
         return result;
@@ -128,9 +177,7 @@ const App: React.FC = () => {
     const generateMap = (currentTasks: Task[]) => {
       for (const task of currentTasks) {
         map.set(task.id, counter++);
-        if (task.children) {
-          generateMap(task.children);
-        }
+        if (task.children) generateMap(task.children);
       }
     };
     generateMap(filteredTasks);
@@ -140,11 +187,8 @@ const App: React.FC = () => {
   const handleToggleRow = useCallback((taskId: number) => {
     setSelectedTaskIds(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(taskId)) {
-        newSet.delete(taskId);
-      } else {
-        newSet.add(taskId);
-      }
+      if (newSet.has(taskId)) newSet.delete(taskId);
+      else newSet.add(taskId);
       onSelectionChange(Array.from(newSet).map(String));
       return newSet;
     });
@@ -153,68 +197,65 @@ const App: React.FC = () => {
   const handleToggleAll = useCallback(() => {
     setSelectedTaskIds(prev => {
       const allVisibleSelected = visibleTaskIds.every(id => prev.has(id));
-      if (allVisibleSelected) {
-        const newSet = new Set(prev);
-        visibleTaskIds.forEach(id => newSet.delete(id));
-        onSelectionChange(Array.from(newSet).map(String));
-        return newSet;
-      } else {
-        const newSet = new Set(prev);
-        visibleTaskIds.forEach(id => newSet.add(id));
-        onSelectionChange(Array.from(newSet).map(String));
-        return newSet;
-      }
+      const newSet = new Set(prev);
+      if (allVisibleSelected) visibleTaskIds.forEach(id => newSet.delete(id));
+      else visibleTaskIds.forEach(id => newSet.add(id));
+      onSelectionChange(Array.from(newSet).map(String));
+      return newSet;
     });
   }, [visibleTaskIds]);
-
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 font-sans p-4 sm:p-6 lg:p-8">
       <div className="max-w-full mx-auto bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{height: 'calc(100vh - 4rem)'}}>
         <header className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-shrink-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
-              <div 
-                className={`px-3 py-1.5 text-sm font-medium flex items-center bg-white rounded-md shadow-sm border border-gray-200 text-gray-800`}
-              >
-                Table
-              </div>
-            </div>
-             <div className="relative">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                <input
-                    type="text"
-                    placeholder="Search tasks..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 w-64"
-                />
+            <ViewTabs
+              views={views}
+              activeViewId={activeViewId}
+              onSelectView={setActiveViewId}
+              onCreateView={() => setIsCreateViewModalOpen(true)}
+              onRenameView={setRenamingView}
+              onDeleteView={handleDeleteView}
+              onSetDefaultView={handleSetDefaultView}
+              onReorderViews={setViews}
+              defaultViewId={localStorage.getItem(DEFAULT_VIEW_ID)}
+            />
+            <div className="relative">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 w-64"
+              />
             </div>
           </div>
-           <div className="flex items-center gap-2">
-              <div className="relative">
-                <button
-                  onClick={() => setIsFieldsMenuOpen(prev => !prev)}
-                  className="flex items-center text-gray-600 hover:text-gray-900 text-sm font-medium px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-100"
-                >
-                  Fields
-                </button>
-                {isFieldsMenuOpen && (
-                  <FieldsMenu 
-                    columns={columns}
-                    setColumns={setColumns}
-                    onClose={() => setIsFieldsMenuOpen(false)}
-                    onReset={handleResetColumns}
-                  />
-                )}
-              </div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <button
+                onClick={() => setIsFieldsMenuOpen(prev => !prev)}
+                className="flex items-center text-gray-600 hover:text-gray-900 text-sm font-medium px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-100"
+              >
+                Fields
+              </button>
+              {isFieldsMenuOpen && activeView && (
+                <FieldsMenu 
+                  columns={activeView.columns}
+                  setColumns={handleSetColumns}
+                  onClose={() => setIsFieldsMenuOpen(false)}
+                  onReset={handleResetColumns}
+                />
+              )}
             </div>
+          </div>
         </header>
         <main className="overflow-auto flex-grow">
-          <ProjectTable 
+          {activeView && <ProjectTable 
               tasks={filteredTasks} 
-              columns={columns}
-              setColumns={setColumns}
+              columns={activeView.columns}
+              setColumns={handleSetColumns}
               onToggle={toggleTaskExpansion} 
               selectedTaskIds={selectedTaskIds}
               visibleTaskIds={visibleTaskIds}
@@ -224,7 +265,7 @@ const App: React.FC = () => {
               editingCell={editingCell}
               onEditCell={setEditingCell}
               onUpdateTask={handleUpdateTask}
-          />
+          />}
         </main>
         <footer className="p-2 border-t border-gray-200 flex-shrink-0">
           <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium px-2 py-1.5 rounded-md hover:bg-gray-100">
@@ -233,6 +274,21 @@ const App: React.FC = () => {
           </button>
         </footer>
       </div>
+      {isCreateViewModalOpen && (
+        <CreateViewModal 
+          onSave={handleCreateView}
+          onCancel={() => setIsCreateViewModalOpen(false)}
+          title="Create new view"
+        />
+      )}
+      {renamingView && (
+        <CreateViewModal 
+          initialName={renamingView.name}
+          onSave={handleRenameView}
+          onCancel={() => setRenamingView(null)}
+          title="Rename view"
+        />
+      )}
     </div>
   );
 };

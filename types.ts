@@ -7,7 +7,7 @@ export enum Status {
   New = 'New',
 }
 
-// FIX: Add Priority enum to resolve missing type errors.
+// FIX: Add Priority enum to define available priority levels for tasks.
 export enum Priority {
   Urgent = 'Urgent',
   High = 'High',
@@ -16,7 +16,7 @@ export enum Priority {
   None = 'None',
 }
 
-// FIX: Add Impact enum to resolve missing type errors.
+// FIX: Add Impact enum to define available impact levels for tasks.
 export enum Impact {
   High = 'High',
   Medium = 'Medium',
@@ -41,13 +41,12 @@ export interface Task {
   subItemsCount?: number;
   children?: Task[];
   isExpanded?: boolean;
-  // FIX: Add optional priority and impact properties to support board and gantt views.
+  // FIX: Add optional priority and impact properties to the Task interface.
   priority?: Priority;
   impact?: Impact;
 }
 
-// FIX: Add ColumnId and Column types for FieldsMenu component.
-export type ColumnId = 'name' | 'status' | 'assignee' | 'dates' | 'priority' | 'impact';
+export type ColumnId = 'name' | 'status' | 'assignee' | 'dates';
 
 export interface Column {
   id: ColumnId;
@@ -55,4 +54,10 @@ export interface Column {
   width: string;
   visible: boolean;
   minWidth?: number;
+}
+
+export interface View {
+  id: string;
+  name: string;
+  columns: Column[];
 }

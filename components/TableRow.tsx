@@ -1,7 +1,7 @@
 import React, { Fragment, useEffect, useRef } from 'react';
-import { Task, Status, Priority, Impact, Column, ColumnId } from '../types';
+import { Task, Status, Column, ColumnId } from '../types';
 import { ChevronRightIcon, ChevronDownIcon, DocumentIcon } from './Icons';
-import { StatusDisplay, AssigneeAvatar, StatusSelector, PrioritySelector, ImpactPill } from './TaskElements';
+import { StatusDisplay, AssigneeAvatar, StatusSelector } from './TaskElements';
 
 interface TableRowProps {
   task: Task;
@@ -159,21 +159,7 @@ const DateCellContent: React.FC<{ task: Task, isEditing: boolean, onEdit: (cell:
    );
 };
 
-const PriorityCellContent: React.FC<{ task: Task, onUpdateTask: TableRowProps['onUpdateTask'] }> = ({ task, onUpdateTask }) => {
-  const handlePriorityChange = (priority: Priority) => {
-    onUpdateTask(task.id, { priority });
-  };
-  return (
-    <PrioritySelector taskId={task.id} currentPriority={task.priority} onPriorityChange={(_, p) => handlePriorityChange(p)} />
-  );
-};
-
-const ImpactCellContent: React.FC<{ task: Task }> = ({ task }) => (
-    task.impact ? <ImpactPill impact={task.impact} /> : null
-);
-
 const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap, selectedTaskIds, onToggleRow, editingCell, onEditCell, onUpdateTask, columns }) => {
-  const hasChildren = task.children && task.children.length > 0;
   const isSelected = selectedTaskIds.has(task.id);
   const rowNum = rowNumberMap.get(task.id);
 
@@ -188,16 +174,12 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
               return <AssigneeCellContent task={task} />;
           case 'dates':
               return <DateCellContent task={task} isEditing={isEditing} onEdit={onEditCell} onUpdateTask={onUpdateTask} />;
-          case 'priority':
-              return <PriorityCellContent task={task} onUpdateTask={onUpdateTask} />;
-          case 'impact':
-              return <ImpactCellContent task={task} />;
           default:
               return null;
       }
   };
   
-  const isColumnEditable = (columnId: ColumnId) => ['name', 'status', 'dates', 'priority'].includes(columnId);
+  const isColumnEditable = (columnId: ColumnId) => ['name', 'status', 'dates'].includes(columnId);
 
   return (
     <Fragment>
@@ -249,7 +231,7 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
             )
         })}
       </tr>
-      {hasChildren && task.isExpanded && task.children?.map(child => (
+      {task.children && task.isExpanded && task.children?.map(child => (
         <TableRow 
             key={child.id} 
             task={child} 

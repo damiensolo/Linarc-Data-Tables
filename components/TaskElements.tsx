@@ -1,7 +1,8 @@
-import React, { useRef, useEffect } from 'react';
-// FIX: Import Priority and Impact types.
+
+import React, { useRef, useEffect, useState } from 'react';
+// FIX: Add useState to React import, and import Priority, Impact types and additional icons to support new components.
 import { Assignee, Status, Priority, Impact } from '../types';
-import { ChevronDownIcon } from './Icons';
+import { ChevronDownIcon, ArrowUpIcon, ArrowDownIcon, MoreHorizontalIcon } from './Icons';
 
 interface PillProps {
     children: React.ReactNode;
@@ -14,6 +15,24 @@ export const Pill: React.FC<PillProps> = ({ children, colorClasses, title }) => 
     {children}
   </span>
 );
+
+// FIX: Implement and export ImpactPill component to display a task's impact level.
+export const ImpactPill: React.FC<{ impact: Impact }> = ({ impact }) => {
+    const impactStyles: Record<Impact, { bg: string; text: string; dot: string }> = {
+        [Impact.High]: { bg: 'bg-red-100', text: 'text-red-800', dot: 'bg-red-500' },
+        [Impact.Medium]: { bg: 'bg-yellow-100', text: 'text-yellow-800', dot: 'bg-yellow-500' },
+        [Impact.Low]: { bg: 'bg-green-100', text: 'text-green-800', dot: 'bg-green-500' },
+    };
+    const style = impactStyles[impact];
+    if (!style) return null;
+
+    return (
+        <Pill colorClasses={`${style.bg} ${style.text}`} title={`Impact: ${impact}`}>
+            <span className={`w-2 h-2 rounded-full ${style.dot}`}></span>
+            <span>{impact}</span>
+        </Pill>
+    );
+};
 
 const statusDotStyles: Record<Status, string> = {
   [Status.InProgress]: 'bg-cyan-500',
@@ -90,61 +109,80 @@ export const StatusSelector: React.FC<{
   );
 };
 
+// FIX: Implement and export PrioritySelector component to display and edit a task's priority.
+const priorityStyles: Record<Priority, { icon: React.FC<React.SVGProps<SVGSVGElement>>; color: string; name: string }> = {
+    [Priority.Urgent]: { icon: ArrowUpIcon, color: 'text-red-600', name: 'Urgent' },
+    [Priority.High]: { icon: ArrowUpIcon, color: 'text-orange-600', name: 'High' },
+    [Priority.Medium]: { icon: MoreHorizontalIcon, color: 'text-yellow-600', name: 'Medium' },
+    [Priority.Low]: { icon: ArrowDownIcon, color: 'text-green-600', name: 'Low' },
+    [Priority.None]: { icon: MoreHorizontalIcon, color: 'text-gray-500', name: 'None' },
+};
+
+export const PrioritySelector: React.FC<{
+  taskId: number;
+  currentPriority?: Priority;
+  onPriorityChange: (taskId: number, newPriority: Priority) => void;
+}> = ({ taskId, currentPriority = Priority.None, onPriorityChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const handleSelect = (priority: Priority) => {
+    onPriorityChange(taskId, priority);
+    setIsOpen(false);
+  };
+
+  const { icon: CurrentPriorityIcon, color: currentPriorityColor, name: currentPriorityName } = priorityStyles[currentPriority] || priorityStyles[Priority.None];
+
+  return (
+    <div ref={containerRef} className="relative w-full h-full" onClick={(e) => { e.stopPropagation(); setIsOpen(p => !p); }}>
+      <div className="w-full h-full flex items-center gap-2 cursor-pointer p-1 rounded hover:bg-gray-100">
+        <CurrentPriorityIcon className={`w-4 h-4 ${currentPriorityColor}`} />
+        <span className="text-gray-800 font-medium">{currentPriorityName}</span>
+      </div>
+      {isOpen && (
+      <ul
+        className="absolute top-full left-0 mt-1 w-full min-w-max bg-white rounded-md shadow-lg border border-gray-200 z-50 overflow-hidden"
+      >
+        {Object.values(Priority).map((p) => {
+          const { icon: Icon, color, name } = priorityStyles[p];
+          return (
+            <li
+              key={p}
+              onMouseDown={() => handleSelect(p)}
+              className={`px-3 py-1.5 text-sm cursor-pointer flex items-center gap-2 ${
+                p === currentPriority
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-gray-800 hover:bg-indigo-500 hover:text-white'
+              }`}
+            >
+              <Icon className={`w-4 h-4 ${p === currentPriority ? 'text-white' : color}`} />
+              <span>{name}</span>
+            </li>
+          );
+        })}
+      </ul>
+      )}
+    </div>
+  );
+};
+
+
 export const AssigneeAvatar: React.FC<{ assignee: Assignee }> = ({ assignee }) => (
     <div title={assignee.name} className={`w-5 h-5 rounded-full ${assignee.avatarColor} flex items-center justify-center text-white text-xs font-bold ring-2 ring-white`}>
         {assignee.initials}
     </div>
 );
-
-// FIX: Add and export ImpactPill component.
-export const ImpactPill: React.FC<{ impact: Impact }> = ({ impact }) => {
-    const impactStyles: Record<Impact, { text: string, bg: string }> = {
-        [Impact.High]: { text: 'text-red-800', bg: 'bg-red-100' },
-        [Impact.Medium]: { text: 'text-yellow-800', bg: 'bg-yellow-100' },
-        [Impact.Low]: { text: 'text-green-800', bg: 'bg-green-100' },
-    };
-    return (
-        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${impactStyles[impact].bg} ${impactStyles[impact].text}`}>
-            {impact} Impact
-        </span>
-    );
-};
-
-// FIX: Add and export PrioritySelector component.
-export const PrioritySelector: React.FC<{
-  taskId: number;
-  currentPriority?: Priority;
-  onPriorityChange: (taskId: number, priority: Priority) => void;
-}> = ({ taskId, currentPriority, onPriorityChange }) => {
-  const priorities = Object.values(Priority);
-
-  const priorityColors: Record<Priority, string> = {
-    [Priority.Urgent]: 'text-red-600',
-    [Priority.High]: 'text-orange-600',
-    [Priority.Medium]: 'text-yellow-600',
-    [Priority.Low]: 'text-blue-600',
-    [Priority.None]: 'text-gray-500',
-  };
-
-  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onPriorityChange(taskId, e.target.value as Priority);
-  };
-  
-  if(!currentPriority) {
-    return <div className="h-6" />;
-  }
-
-  return (
-    <div className="relative">
-      <select
-        value={currentPriority}
-        onChange={handleSelectChange}
-        className={`appearance-none bg-transparent border-none text-sm font-medium focus:ring-0 p-1 rounded-md hover:bg-gray-100 w-full text-left ${priorityColors[currentPriority]}`}
-      >
-        {priorities.map(p => (
-          <option key={p} value={p}>{p}</option>
-        ))}
-      </select>
-    </div>
-  );
-};

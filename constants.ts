@@ -1,4 +1,5 @@
-import { Task, Status, Assignee, Column } from './types';
+
+import { Task, Status, Assignee, Column, Priority, Impact } from './types';
 
 const JANE_SMITH: Assignee = { id: 'js', name: 'Jane Smith', initials: 'JS', avatarColor: 'bg-purple-600' };
 const SAM_LEE: Assignee = { id: 'sl', name: 'Sam Lee', initials: 'SL', avatarColor: 'bg-pink-600' };
@@ -8,10 +9,9 @@ export const DEFAULT_COLUMNS: Column[] = [
   { id: 'status', label: 'Status', width: '150px', visible: true, minWidth: 120 },
   { id: 'assignee', label: 'Assignee', width: '120px', visible: true, minWidth: 80 },
   { id: 'dates', label: 'Start Date - Due Date', width: '220px', visible: true, minWidth: 180 },
-  { id: 'priority', label: 'Priority', width: '120px', visible: false, minWidth: 100 },
-  { id: 'impact', label: 'Impact', width: '120px', visible: false, minWidth: 120 },
 ];
 
+// FIX: Added priority and impact data to mock tasks to support new features.
 export const MOCK_TASKS: Task[] = [
   {
     id: 1,
@@ -21,6 +21,8 @@ export const MOCK_TASKS: Task[] = [
     startDate: '15/05/2024',
     dueDate: '30/06/2024',
     isExpanded: true,
+    priority: Priority.High,
+    impact: Impact.High,
     children: [
       {
         id: 2,
@@ -30,6 +32,8 @@ export const MOCK_TASKS: Task[] = [
         startDate: '15/05/2024',
         dueDate: '28/05/2024',
         isExpanded: true,
+        priority: Priority.High,
+        impact: Impact.Medium,
         children: [
           {
             id: 3,
@@ -38,6 +42,7 @@ export const MOCK_TASKS: Task[] = [
             status: Status.Completed,
             startDate: '15/05/2024',
             dueDate: '20/05/2024',
+            priority: Priority.Medium,
           },
           {
             id: 4,
@@ -46,6 +51,7 @@ export const MOCK_TASKS: Task[] = [
             status: Status.Completed,
             startDate: '21/05/2024',
             dueDate: '28/05/2024',
+            priority: Priority.Medium,
           },
         ],
       },
@@ -56,6 +62,7 @@ export const MOCK_TASKS: Task[] = [
         status: Status.InReview,
         startDate: '29/05/2024',
         dueDate: '04/06/2024',
+        priority: Priority.High,
       },
       {
         id: 6,
@@ -64,6 +71,8 @@ export const MOCK_TASKS: Task[] = [
         status: Status.Planned,
         startDate: '05/06/2024',
         dueDate: '15/06/2024',
+        priority: Priority.Low,
+        impact: Impact.Low,
       },
       {
         id: 7,
@@ -72,6 +81,7 @@ export const MOCK_TASKS: Task[] = [
         status: Status.New,
         startDate: '16/06/2024',
         dueDate: '20/06/2024',
+        priority: Priority.None,
       },
       {
         id: 8,
@@ -80,6 +90,7 @@ export const MOCK_TASKS: Task[] = [
         status: Status.New,
         startDate: '05/06/2024',
         dueDate: '10/06/2024',
+        priority: Priority.Medium,
       },
     ],
   },
