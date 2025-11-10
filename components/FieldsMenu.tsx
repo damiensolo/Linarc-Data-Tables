@@ -1,15 +1,34 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Column, ColumnId } from '../types';
+import { Column, ColumnId, DisplayDensity } from '../types';
 import { GripVerticalIcon } from './Icons';
 
-interface FieldsMenuProps {
+interface SettingsMenuProps {
   columns: Column[];
   setColumns: React.Dispatch<React.SetStateAction<Column[]>>;
+  displayDensity: DisplayDensity;
+  setDisplayDensity: (density: DisplayDensity) => void;
   onClose: () => void;
-  onReset: () => void;
+  onResetColumns: () => void;
 }
 
-const FieldsMenu: React.FC<FieldsMenuProps> = ({ columns, setColumns, onClose, onReset }) => {
+const DensityOption: React.FC<{
+  label: string;
+  density: DisplayDensity;
+  current: DisplayDensity;
+  onClick: (d: DisplayDensity) => void;
+}> = ({ label, density, current, onClick }) => (
+  <button
+    onClick={() => onClick(density)}
+    className={`w-full text-left px-3 py-1.5 text-sm rounded-md ${
+      current === density ? 'bg-indigo-100 text-indigo-700 font-semibold' : 'text-gray-700 hover:bg-gray-100'
+    }`}
+  >
+    {label}
+  </button>
+);
+
+
+const SettingsMenu: React.FC<SettingsMenuProps> = ({ columns, setColumns, displayDensity, setDisplayDensity, onClose, onResetColumns }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(null);
@@ -68,26 +87,40 @@ const FieldsMenu: React.FC<FieldsMenuProps> = ({ columns, setColumns, onClose, o
   };
 
   return (
-    <div ref={menuRef} className="absolute top-full right-0 mt-2 w-64 bg-white rounded-md shadow-lg border border-gray-200 z-30">
+    <div ref={menuRef} className="absolute top-full right-0 mt-2 w-72 bg-white rounded-md shadow-lg border border-gray-200 z-50 flex flex-col">
       <div className="p-3 border-b border-gray-200">
-        <h3 className="text-sm font-semibold text-gray-800">Customize fields</h3>
-        <p className="text-xs text-gray-500">Toggle visibility and reorder.</p>
+        <h3 className="text-sm font-semibold text-gray-800">View settings</h3>
       </div>
-      <ul className="py-2" onDragLeave={handleDragLeave}>
+      
+      {/* Density Section */}
+      <div className="p-3 border-b border-gray-200">
+        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Display Density</h4>
+        <div className="space-y-1">
+          <DensityOption label="Compact" density="compact" current={displayDensity} onClick={setDisplayDensity} />
+          <DensityOption label="Standard" density="standard" current={displayDensity} onClick={setDisplayDensity} />
+          <DensityOption label="Comfortable" density="comfortable" current={displayDensity} onClick={setDisplayDensity} />
+        </div>
+      </div>
+              
+      <div className="p-3">
+        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Fields</h4>
+        <p className="text-xs text-gray-500 mb-2">Toggle visibility and reorder.</p>
+      </div>
+      <ul className="px-1 pb-2 flex-grow overflow-y-auto" style={{ maxHeight: '250px' }} onDragLeave={handleDragLeave}>
         {columns.map((column, index) => (
           <React.Fragment key={column.id}>
              {dropIndicatorIndex === index && (
-                <li className="h-0.5 bg-blue-500 mx-3 my-1"></li>
+                <li className="h-0.5 bg-blue-500 mx-2 my-0.5"></li>
               )}
             <li
-              className={`flex items-center justify-between px-3 py-1.5 hover:bg-gray-50 ${draggedIndex === index ? 'opacity-50' : ''}`}
+              className={`flex items-center justify-between px-2 py-1.5 hover:bg-gray-50 rounded-md ${draggedIndex === index ? 'opacity-50' : ''}`}
               draggable
               onDragStart={(e) => handleDragStart(e, index)}
               onDragOver={(e) => handleDragOver(e, index)}
               onDrop={handleDrop}
             >
               <div className="flex items-center">
-                <GripVerticalIcon className="w-5 h-5 text-gray-300 cursor-grab mr-1" />
+                <GripVerticalIcon className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-grab mr-1" />
                 <label htmlFor={`field-${column.id}`} className="text-sm text-gray-700 cursor-pointer">{column.label}</label>
               </div>
               <input
@@ -101,19 +134,19 @@ const FieldsMenu: React.FC<FieldsMenuProps> = ({ columns, setColumns, onClose, o
           </React.Fragment>
         ))}
         {dropIndicatorIndex === columns.length && (
-            <li className="h-0.5 bg-blue-500 mx-3 my-1"></li>
+            <li className="h-0.5 bg-blue-500 mx-2 my-0.5"></li>
         )}
       </ul>
-      <div className="p-2 border-t border-gray-200">
+      <div className="p-2 border-t border-gray-200 mt-auto">
         <button 
-          onClick={onReset}
+          onClick={onResetColumns}
           className="w-full text-center text-sm font-medium text-gray-700 hover:text-indigo-600 p-1.5 rounded-md hover:bg-gray-100 transition-colors"
         >
-          Reset to default
+          Reset fields to default
         </button>
       </div>
     </div>
   );
 };
 
-export default FieldsMenu;
+export default SettingsMenu;

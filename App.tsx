@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { MOCK_TASKS, DEFAULT_COLUMNS } from './constants';
-import { Task, Column, View } from './types';
+import { Task, Column, View, DisplayDensity } from './types';
 import ProjectTable from './components/ProjectTable';
-import { PlusIcon, SearchIcon } from './components/Icons';
-import FieldsMenu from './components/FieldsMenu';
+import { PlusIcon, SearchIcon, SettingsIcon } from './components/Icons';
+import SettingsMenu from './components/FieldsMenu';
 import ViewTabs from './components/ViewTabs';
 import CreateViewModal from './components/CreateViewModal';
 
@@ -16,7 +16,7 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTaskIds, setSelectedTaskIds] = useState(new Set<number>());
   const [editingCell, setEditingCell] = useState<{ taskId: number; column: string } | null>(null);
-  const [isFieldsMenuOpen, setIsFieldsMenuOpen] = useState(false);
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [isCreateViewModalOpen, setIsCreateViewModalOpen] = useState(false);
   const [renamingView, setRenamingView] = useState<View | null>(null);
   const mainContainerRef = useRef<HTMLElement>(null);
@@ -51,7 +51,7 @@ const App: React.FC = () => {
     } catch (error) {
       console.error("Failed to parse views from localStorage", error);
     }
-    return [{ id: 'default', name: 'Table', columns: DEFAULT_COLUMNS }];
+    return [{ id: 'default', name: 'Table', columns: DEFAULT_COLUMNS, displayDensity: 'compact' }];
   });
 
   const [activeViewId, setActiveViewId] = useState<string>(() => {
@@ -87,10 +87,19 @@ const App: React.FC = () => {
       return view;
     }));
   };
+
+  const handleSetDisplayDensity = (density: DisplayDensity) => {
+    setViews(prevViews => prevViews.map(view => {
+      if (view.id === activeViewId) {
+        return { ...view, displayDensity: density };
+      }
+      return view;
+    }));
+  };
   
   const handleResetColumns = () => {
     handleSetColumns(DEFAULT_COLUMNS);
-    setIsFieldsMenuOpen(false);
+    setIsSettingsMenuOpen(false);
   };
 
   const handleCreateView = (name: string) => {
@@ -98,6 +107,7 @@ const App: React.FC = () => {
       id: `view_${Date.now()}`,
       name,
       columns: activeView.columns, // Clone columns from the current view
+      displayDensity: activeView.displayDensity || 'compact',
     };
     setViews(prev => [...prev, newView]);
     setActiveViewId(newView.id);
@@ -258,17 +268,20 @@ const App: React.FC = () => {
           <div className="flex items-center gap-2">
             <div className="relative">
               <button
-                onClick={() => setIsFieldsMenuOpen(prev => !prev)}
-                className="flex items-center text-gray-600 hover:text-gray-900 text-sm font-medium px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-100"
+                onClick={() => setIsSettingsMenuOpen(prev => !prev)}
+                className="flex items-center text-gray-600 hover:text-gray-900 p-1.5 rounded-md border border-gray-300 hover:bg-gray-100"
+                aria-label="Settings"
               >
-                Fields
+                <SettingsIcon className="w-5 h-5" />
               </button>
-              {isFieldsMenuOpen && activeView && (
-                <FieldsMenu 
+              {isSettingsMenuOpen && activeView && (
+                <SettingsMenu 
                   columns={activeView.columns}
                   setColumns={handleSetColumns}
-                  onClose={() => setIsFieldsMenuOpen(false)}
-                  onReset={handleResetColumns}
+                  displayDensity={activeView.displayDensity || 'compact'}
+                  setDisplayDensity={handleSetDisplayDensity}
+                  onClose={() => setIsSettingsMenuOpen(false)}
+                  onResetColumns={handleResetColumns}
                 />
               )}
             </div>
@@ -289,6 +302,7 @@ const App: React.FC = () => {
               onEditCell={setEditingCell}
               onUpdateTask={handleUpdateTask}
               isScrolled={isScrolled}
+              displayDensity={activeView.displayDensity || 'compact'}
           />}
         </main>
         <footer className="p-2 border-t border-gray-200 flex-shrink-0">

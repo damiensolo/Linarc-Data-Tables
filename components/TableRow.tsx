@@ -1,5 +1,5 @@
 import React, { Fragment, useEffect, useRef } from 'react';
-import { Task, Status, Column, ColumnId } from '../types';
+import { Task, Status, Column, ColumnId, DisplayDensity } from '../types';
 import { ChevronRightIcon, ChevronDownIcon, DocumentIcon } from './Icons';
 import { StatusDisplay, AssigneeAvatar, StatusSelector } from './TaskElements';
 
@@ -15,6 +15,7 @@ interface TableRowProps {
   onUpdateTask: (taskId: number, updatedValues: Partial<Omit<Task, 'id' | 'children'>>) => void;
   columns: Column[];
   isScrolled: boolean;
+  displayDensity: DisplayDensity;
 }
 
 const toInputFormat = (date: string): string => {
@@ -29,11 +30,20 @@ const fromInputFormat = (date: string): string => {
   return `${day}/${month}/${year}`;
 };
 
+const getRowHeight = (density: DisplayDensity) => {
+  switch (density) {
+    case 'compact': return 'h-8';
+    case 'standard': return 'h-10';
+    case 'comfortable': return 'h-12';
+    default: return 'h-8';
+  }
+};
+
 // --- Cell Content Components ---
 
-const SelectionCell: React.FC<{ task: Task, isSelected: boolean, onToggleRow: (id: number) => void, rowNum?: number, isScrolled: boolean }> = ({ task, isSelected, onToggleRow, rowNum, isScrolled }) => {
+const SelectionCell: React.FC<{ task: Task, isSelected: boolean, onToggleRow: (id: number) => void, rowNum?: number, isScrolled: boolean, rowHeightClass: string }> = ({ task, isSelected, onToggleRow, rowNum, isScrolled, rowHeightClass }) => {
   const taskNameId = `task-name-${task.id}`;
-  const cellClasses = `sticky left-0 z-10 h-8 px-2 w-10 text-center text-gray-500 border-b border-r border-gray-200 transition-shadow duration-200 ${
+  const cellClasses = `sticky left-0 z-10 ${rowHeightClass} px-2 w-10 text-center text-gray-500 border-b border-r border-gray-200 transition-shadow duration-200 ${
     isSelected 
       ? 'bg-indigo-50 group-hover:bg-indigo-100' 
       : 'bg-white group-hover:bg-gray-50'
@@ -73,8 +83,8 @@ const NameCellContent: React.FC<{ task: Task, level: number, isEditing: boolean,
     };
 
     return (
-        <div className="flex items-center w-full" style={{ paddingLeft: `${level * 24}px` }}>
-            <div className="w-5 h-5 flex items-center justify-center mr-1 flex-shrink-0">
+        <div className="grid grid-cols-[auto_1fr] items-center gap-x-1 w-full" style={{ paddingLeft: `${level * 24}px` }}>
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                 {hasChildren ? (
                     <button
                         onClick={(e) => { e.stopPropagation(); onToggle(task.id); }}
@@ -99,7 +109,9 @@ const NameCellContent: React.FC<{ task: Task, level: number, isEditing: boolean,
                     className="w-full bg-transparent border-0 p-0 focus:ring-0 focus:outline-none text-gray-800 font-medium"
                 />
             ) : (
-                <span id={taskNameId} className="truncate text-gray-800 font-medium" title={task.name}>{task.name}</span>
+                <div className="min-w-0">
+                  <p id={taskNameId} className="truncate text-gray-800 font-medium" title={task.name}>{task.name}</p>
+                </div>
             )}
         </div>
     );
@@ -154,15 +166,16 @@ const DateCellContent: React.FC<{ task: Task, isEditing: boolean, onEdit: (cell:
            />
         </div>
     ) : (
-       <div className="truncate font-medium text-gray-600" title={`${task.startDate} - ${task.dueDate}`}>
+       <div className="truncate font-medium text-gray-600 min-w-0" title={`${task.startDate} - ${task.dueDate}`}>
            {`${task.startDate} - ${task.dueDate}`}
        </div>
    );
 };
 
-const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap, selectedTaskIds, onToggleRow, editingCell, onEditCell, onUpdateTask, columns, isScrolled }) => {
+const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap, selectedTaskIds, onToggleRow, editingCell, onEditCell, onUpdateTask, columns, isScrolled, displayDensity }) => {
   const isSelected = selectedTaskIds.has(task.id);
   const rowNum = rowNumberMap.get(task.id);
+  const rowHeightClass = getRowHeight(displayDensity);
 
   const getCellContent = (columnId: ColumnId) => {
       const isEditing = editingCell?.taskId === task.id && editingCell?.column === columnId;
@@ -184,19 +197,20 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
 
   return (
     <Fragment>
-      <tr className={`bg-white group ${isSelected ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}>
+      <tr className={`group ${isSelected ? 'bg-indigo-50 hover:bg-indigo-100' : 'hover:bg-gray-50'}`}>
         <SelectionCell 
             task={task} 
             isSelected={isSelected} 
             onToggleRow={onToggleRow}
             rowNum={rowNum}
             isScrolled={isScrolled}
+            rowHeightClass={rowHeightClass}
         />
         {columns.map((col) => {
             const isEditing = editingCell?.taskId === task.id && editingCell?.column === col.id;
             const isEditable = isColumnEditable(col.id);
             
-            let cellClasses = 'h-8 p-0';
+            let cellClasses = `${rowHeightClass} p-0`;
             if (isEditable) cellClasses += ' cursor-pointer';
 
             cellClasses += ' border-b border-gray-200';
@@ -214,15 +228,15 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
                  <td 
                     key={col.id}
                     className={cellClasses}
-                    style={{ maxWidth: col.width }}
                     onClick={isEditable && !isEditing ? () => onEditCell({ taskId: task.id, column: col.id }) : undefined}
                 >
-                    <div className="flex items-center h-full px-6">
+                    <div className="flex items-center h-full px-6 w-full">
                       {getCellContent(col.id)}
                     </div>
                 </td>
             )
         })}
+        <td className={`${rowHeightClass} border-b border-gray-200`}></td>
       </tr>
       {task.children && task.isExpanded && task.children?.map(child => (
         <TableRow 
@@ -238,6 +252,7 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
             onUpdateTask={onUpdateTask}
             columns={columns}
             isScrolled={isScrolled}
+            displayDensity={displayDensity}
         />
       ))}
     </Fragment>

@@ -56,8 +56,11 @@ export interface Column {
   minWidth?: number;
 }
 
+export type DisplayDensity = 'compact' | 'standard' | 'comfortable';
+
 export interface View {
   id: string;
   name: string;
   columns: Column[];
+  displayDensity?: DisplayDensity;
 }

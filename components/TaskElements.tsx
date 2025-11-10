@@ -1,4 +1,5 @@
 
+
 import React, { useRef, useEffect, useState } from 'react';
 // FIX: Add useState to React import, and import Priority, Impact types and additional icons to support new components.
 import { Assignee, Status, Priority, Impact } from '../types';
@@ -44,9 +45,11 @@ const statusDotStyles: Record<Status, string> = {
 
 export const StatusDisplay: React.FC<{ status: Status }> = ({ status }) => {
   return (
-    <div className="flex items-center gap-2 overflow-hidden" title={status}>
+    <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 w-full" title={status}>
       <span className={`w-2.5 h-2.5 rounded-full ${statusDotStyles[status]} flex-shrink-0`}></span>
-      <span className="text-gray-600 font-medium truncate">{status}</span>
+      <div className="min-w-0">
+        <p className="text-gray-600 font-medium truncate">{status}</p>
+      </div>
     </div>
   );
 };

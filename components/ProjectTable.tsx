@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { Task, Column, ColumnId } from '../types';
+import { Task, Column, ColumnId, DisplayDensity } from '../types';
 import TableRow from './TableRow';
 
 interface ProjectTableProps {
@@ -16,6 +16,7 @@ interface ProjectTableProps {
   columns: Column[];
   setColumns: React.Dispatch<React.SetStateAction<Column[]>>;
   isScrolled: boolean;
+  displayDensity: DisplayDensity;
 }
 
 const Resizer: React.FC<{ onMouseDown: (e: React.MouseEvent) => void }> = ({ onMouseDown }) => (
@@ -25,6 +26,15 @@ const Resizer: React.FC<{ onMouseDown: (e: React.MouseEvent) => void }> = ({ onM
     style={{ zIndex: 10 }}
   />
 );
+
+const getHeaderHeight = (density: DisplayDensity) => {
+  switch (density) {
+    case 'compact': return 'h-9';
+    case 'standard': return 'h-11';
+    case 'comfortable': return 'h-14';
+    default: return 'h-9';
+  }
+};
 
 
 const ProjectTable: React.FC<ProjectTableProps> = ({ 
@@ -41,6 +51,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   columns,
   setColumns,
   isScrolled,
+  displayDensity,
 }) => {
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
   const headerRef = useRef<HTMLTableRowElement>(null);
@@ -152,12 +163,13 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   };
 
   const visibleColumns = columns.filter(c => c.visible);
+  const headerHeightClass = getHeaderHeight(displayDensity);
 
   return (
-    <table className="text-sm text-left text-gray-500 whitespace-nowrap border-separate border-spacing-0">
+    <table className="min-w-full table-fixed text-sm text-left text-gray-500 whitespace-nowrap border-collapse">
       <thead className="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 z-20">
         <tr ref={headerRef}>
-          <th scope="col" className={`sticky left-0 bg-gray-50 z-30 h-9 px-2 w-10 border-b border-gray-200 border-r border-gray-200 transition-shadow duration-200 ${isScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.05)]' : ''}`}>
+          <th scope="col" className={`sticky left-0 bg-gray-50 z-30 ${headerHeightClass} px-2 w-10 border-b border-gray-200 border-r border-gray-200 transition-shadow duration-200 ${isScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.05)]' : ''}`}>
             <div className="flex items-center justify-center h-full">
               <input
                 type="checkbox"
@@ -174,7 +186,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
             <th 
               key={col.id} 
               scope="col" 
-              className="h-9 px-6 font-semibold border-b border-gray-200 relative group cursor-grab align-middle"
+              className={`${headerHeightClass} px-6 font-semibold border-b border-gray-200 relative group cursor-grab align-middle`}
               style={{ width: col.width, zIndex: 5 }}
               draggable
               onDragStart={(e) => handleDragStartHeader(e, col.id)}
@@ -189,6 +201,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
               <Resizer onMouseDown={onMouseDown(col.id, col.minWidth)} />
             </th>
           ))}
+          <th scope="col" className={`${headerHeightClass} w-auto border-b border-gray-200`}></th>
         </tr>
       </thead>
       <tbody>
@@ -206,6 +219,7 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
             onEditCell={onEditCell}
             onUpdateTask={onUpdateTask}
             isScrolled={isScrolled}
+            displayDensity={displayDensity}
           />
         ))}
       </tbody>
