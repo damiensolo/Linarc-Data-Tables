@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Column, ColumnId, DisplayDensity } from '../types';
 import { GripVerticalIcon } from './Icons';
@@ -7,6 +8,8 @@ interface SettingsMenuProps {
   setColumns: React.Dispatch<React.SetStateAction<Column[]>>;
   displayDensity: DisplayDensity;
   setDisplayDensity: (density: DisplayDensity) => void;
+  showGridLines: boolean;
+  setShowGridLines: (show: boolean) => void;
   onClose: () => void;
   onResetColumns: () => void;
 }
@@ -28,7 +31,7 @@ const DensityOption: React.FC<{
 );
 
 
-const SettingsMenu: React.FC<SettingsMenuProps> = ({ columns, setColumns, displayDensity, setDisplayDensity, onClose, onResetColumns }) => {
+const SettingsMenu: React.FC<SettingsMenuProps> = ({ columns, setColumns, displayDensity, setDisplayDensity, showGridLines, setShowGridLines, onClose, onResetColumns }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(null);
@@ -100,6 +103,23 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ columns, setColumns, displa
           <DensityOption label="Standard" density="standard" current={displayDensity} onClick={setDisplayDensity} />
           <DensityOption label="Comfortable" density="comfortable" current={displayDensity} onClick={setDisplayDensity} />
         </div>
+      </div>
+      
+      {/* Grid Lines Section */}
+      <div className="p-3 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium text-gray-700">Show grid lines</h4>
+              <label htmlFor="grid-toggle" className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                      type="checkbox" 
+                      id="grid-toggle" 
+                      className="sr-only peer" 
+                      checked={showGridLines} 
+                      onChange={(e) => setShowGridLines(e.target.checked)} 
+                  />
+                  <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+          </div>
       </div>
               
       <div className="p-3">

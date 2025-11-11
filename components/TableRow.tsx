@@ -1,3 +1,4 @@
+
 import React, { Fragment, useEffect, useRef } from 'react';
 import { Task, Status, Column, ColumnId, DisplayDensity } from '../types';
 import { ChevronRightIcon, ChevronDownIcon, DocumentIcon } from './Icons';
@@ -16,6 +17,8 @@ interface TableRowProps {
   columns: Column[];
   isScrolled: boolean;
   displayDensity: DisplayDensity;
+  showGridLines: boolean;
+  onShowDetails: (taskId: number) => void;
 }
 
 const toInputFormat = (date: string): string => {
@@ -172,7 +175,7 @@ const DateCellContent: React.FC<{ task: Task, isEditing: boolean, onEdit: (cell:
    );
 };
 
-const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap, selectedTaskIds, onToggleRow, editingCell, onEditCell, onUpdateTask, columns, isScrolled, displayDensity }) => {
+const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap, selectedTaskIds, onToggleRow, editingCell, onEditCell, onUpdateTask, columns, isScrolled, displayDensity, showGridLines, onShowDetails }) => {
   const isSelected = selectedTaskIds.has(task.id);
   const rowNum = rowNumberMap.get(task.id);
   const rowHeightClass = getRowHeight(displayDensity);
@@ -214,6 +217,9 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
             if (isEditable) cellClasses += ' cursor-pointer';
 
             cellClasses += ' border-b border-gray-200';
+            if (showGridLines) {
+              cellClasses += ' border-r border-gray-200';
+            }
             
             if (isEditable) {
                 if (isEditing) {
@@ -236,6 +242,17 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
                 </td>
             )
         })}
+        <td className={`${rowHeightClass} border-b border-gray-200 px-4 ${showGridLines ? 'border-r border-gray-200' : ''}`}>
+            <div className="flex items-center justify-center h-full">
+                <button 
+                    onClick={() => onShowDetails(task.id)} 
+                    className="p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                    aria-label={`View details for ${task.name}`}
+                >
+                    <ChevronRightIcon className="w-5 h-5" />
+                </button>
+            </div>
+        </td>
         <td className={`${rowHeightClass} border-b border-gray-200`}></td>
       </tr>
       {task.children && task.isExpanded && task.children?.map(child => (
@@ -253,6 +270,8 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
             columns={columns}
             isScrolled={isScrolled}
             displayDensity={displayDensity}
+            showGridLines={showGridLines}
+            onShowDetails={onShowDetails}
         />
       ))}
     </Fragment>

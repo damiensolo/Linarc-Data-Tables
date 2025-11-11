@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { MOCK_TASKS, DEFAULT_COLUMNS } from './constants';
 import { Task, Column, View, DisplayDensity } from './types';
@@ -6,6 +7,7 @@ import { PlusIcon, SearchIcon, SettingsIcon } from './components/Icons';
 import SettingsMenu from './components/FieldsMenu';
 import ViewTabs from './components/ViewTabs';
 import CreateViewModal from './components/CreateViewModal';
+import ItemDetailsPanel from './components/ItemDetailsPanel';
 
 const VIEWS_STORAGE_KEY = 'project-table-views';
 const ACTIVE_VIEW_STORAGE_KEY = 'project-table-active-view-id';
@@ -21,6 +23,7 @@ const App: React.FC = () => {
   const [renamingView, setRenamingView] = useState<View | null>(null);
   const mainContainerRef = useRef<HTMLElement>(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [detailedTask, setDetailedTask] = useState<Task | null>(null);
 
   useEffect(() => {
     const container = mainContainerRef.current;
@@ -51,7 +54,7 @@ const App: React.FC = () => {
     } catch (error) {
       console.error("Failed to parse views from localStorage", error);
     }
-    return [{ id: 'default', name: 'Table', columns: DEFAULT_COLUMNS, displayDensity: 'compact' }];
+    return [{ id: 'default', name: 'Table', columns: DEFAULT_COLUMNS, displayDensity: 'compact', showGridLines: false }];
   });
 
   const [activeViewId, setActiveViewId] = useState<string>(() => {
@@ -96,6 +99,15 @@ const App: React.FC = () => {
       return view;
     }));
   };
+
+  const handleSetShowGridLines = (show: boolean) => {
+    setViews(prevViews => prevViews.map(view => {
+      if (view.id === activeViewId) {
+        return { ...view, showGridLines: show };
+      }
+      return view;
+    }));
+  };
   
   const handleResetColumns = () => {
     handleSetColumns(DEFAULT_COLUMNS);
@@ -108,6 +120,7 @@ const App: React.FC = () => {
       name,
       columns: activeView.columns, // Clone columns from the current view
       displayDensity: activeView.displayDensity || 'compact',
+      showGridLines: activeView.showGridLines || false,
     };
     setViews(prev => [...prev, newView]);
     setActiveViewId(newView.id);
@@ -147,7 +160,10 @@ const App: React.FC = () => {
       });
     };
     setTasks(prevTasks => updateRecursively(prevTasks));
-  }, []);
+    if (detailedTask && detailedTask.id === taskId) {
+      setDetailedTask(prev => prev ? { ...prev, ...updatedValues } : null);
+    }
+  }, [detailedTask]);
 
   const toggleTaskExpansion = useCallback((taskId: number) => {
     setEditingCell(null);
@@ -238,6 +254,22 @@ const App: React.FC = () => {
     });
   }, [visibleTaskIds]);
 
+  const findTaskById = (tasks: Task[], id: number): Task | null => {
+    for (const task of tasks) {
+      if (task.id === id) return task;
+      if (task.children) {
+        const found = findTaskById(task.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  
+  const handleShowDetailsById = (taskId: number) => {
+      const task = findTaskById(tasks, taskId);
+      if(task) setDetailedTask(task);
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 font-sans p-4 sm:p-6 lg:p-8">
       <div className="max-w-full mx-auto bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col" style={{height: 'calc(100vh - 4rem)'}}>
@@ -280,6 +312,8 @@ const App: React.FC = () => {
                   setColumns={handleSetColumns}
                   displayDensity={activeView.displayDensity || 'compact'}
                   setDisplayDensity={handleSetDisplayDensity}
+                  showGridLines={activeView.showGridLines || false}
+                  setShowGridLines={handleSetShowGridLines}
                   onClose={() => setIsSettingsMenuOpen(false)}
                   onResetColumns={handleResetColumns}
                 />
@@ -287,24 +321,29 @@ const App: React.FC = () => {
             </div>
           </div>
         </header>
-        <main ref={mainContainerRef} className="overflow-auto flex-grow">
-          {activeView && <ProjectTable 
-              tasks={filteredTasks} 
-              columns={activeView.columns}
-              setColumns={handleSetColumns}
-              onToggle={toggleTaskExpansion} 
-              selectedTaskIds={selectedTaskIds}
-              visibleTaskIds={visibleTaskIds}
-              onToggleRow={handleToggleRow}
-              onToggleAll={handleToggleAll}
-              rowNumberMap={rowNumberMap}
-              editingCell={editingCell}
-              onEditCell={setEditingCell}
-              onUpdateTask={handleUpdateTask}
-              isScrolled={isScrolled}
-              displayDensity={activeView.displayDensity || 'compact'}
-          />}
-        </main>
+        <div className="flex-grow flex relative overflow-hidden">
+          <main ref={mainContainerRef} className="overflow-auto flex-grow w-full h-full">
+            {activeView && <ProjectTable 
+                tasks={filteredTasks} 
+                columns={activeView.columns}
+                setColumns={handleSetColumns}
+                onToggle={toggleTaskExpansion} 
+                selectedTaskIds={selectedTaskIds}
+                visibleTaskIds={visibleTaskIds}
+                onToggleRow={handleToggleRow}
+                onToggleAll={handleToggleAll}
+                rowNumberMap={rowNumberMap}
+                editingCell={editingCell}
+                onEditCell={setEditingCell}
+                onUpdateTask={handleUpdateTask}
+                isScrolled={isScrolled}
+                onShowDetails={handleShowDetailsById}
+                displayDensity={activeView.displayDensity || 'compact'}
+                showGridLines={activeView.showGridLines || false}
+            />}
+          </main>
+          <ItemDetailsPanel task={detailedTask} onClose={() => setDetailedTask(null)} />
+        </div>
         <footer className="p-2 border-t border-gray-200 flex-shrink-0">
           <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium px-2 py-1.5 rounded-md hover:bg-gray-100">
             <PlusIcon className="w-4 h-4" />

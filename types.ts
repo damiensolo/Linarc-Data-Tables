@@ -63,4 +63,5 @@ export interface View {
   name: string;
   columns: Column[];
   displayDensity?: DisplayDensity;
+  showGridLines?: boolean;
 }
