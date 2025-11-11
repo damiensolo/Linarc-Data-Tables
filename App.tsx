@@ -1,7 +1,6 @@
-
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { MOCK_TASKS, DEFAULT_COLUMNS } from './constants';
-import { Task, Column, View, DisplayDensity } from './types';
+import { Task, Column, View, DisplayDensity, ColumnId } from './types';
 import ProjectTable from './components/ProjectTable';
 import { PlusIcon, SearchIcon, SettingsIcon } from './components/Icons';
 import SettingsMenu from './components/FieldsMenu';
@@ -12,6 +11,11 @@ import ItemDetailsPanel from './components/ItemDetailsPanel';
 const VIEWS_STORAGE_KEY = 'project-table-views';
 const ACTIVE_VIEW_STORAGE_KEY = 'project-table-active-view-id';
 const DEFAULT_VIEW_ID = 'project-table-default-view-id';
+
+type SortConfig = {
+  columnId: ColumnId;
+  direction: 'asc' | 'desc';
+} | null;
 
 const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
@@ -24,6 +28,7 @@ const App: React.FC = () => {
   const mainContainerRef = useRef<HTMLElement>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [detailedTask, setDetailedTask] = useState<Task | null>(null);
+  const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
   useEffect(() => {
     const container = mainContainerRef.current;
@@ -54,7 +59,7 @@ const App: React.FC = () => {
     } catch (error) {
       console.error("Failed to parse views from localStorage", error);
     }
-    return [{ id: 'default', name: 'Table', columns: DEFAULT_COLUMNS, displayDensity: 'compact', showGridLines: false }];
+    return [{ id: 'default', name: 'Table', columns: DEFAULT_COLUMNS, displayDensity: 'standard', showGridLines: false }];
   });
 
   const [activeViewId, setActiveViewId] = useState<string>(() => {
@@ -119,7 +124,7 @@ const App: React.FC = () => {
       id: `view_${Date.now()}`,
       name,
       columns: activeView.columns, // Clone columns from the current view
-      displayDensity: activeView.displayDensity || 'compact',
+      displayDensity: activeView.displayDensity || 'standard',
       showGridLines: activeView.showGridLines || false,
     };
     setViews(prev => [...prev, newView]);
@@ -181,30 +186,98 @@ const App: React.FC = () => {
     setTasks(prevTasks => updateExpansion(prevTasks));
   }, []);
 
-  const filteredTasks = useMemo(() => {
-    if (!searchQuery) return tasks;
-    const lowercasedQuery = searchQuery.toLowerCase();
-
-    const filterRecursively = (taskArray: Task[]): Task[] => {
-        const result: Task[] = [];
-        for (const task of taskArray) {
-            let childrenMatch = false;
-            let filteredChildren: Task[] | undefined = undefined;
-
-            if (task.children) {
-                filteredChildren = filterRecursively(task.children);
-                if (filteredChildren.length > 0) childrenMatch = true;
-            }
-            const selfMatch = task.name.toLowerCase().includes(lowercasedQuery) || task.assignees.some(a => a.name.toLowerCase().includes(lowercasedQuery));
-
-            if (selfMatch || childrenMatch) {
-                result.push({ ...task, isExpanded: childrenMatch || task.isExpanded, children: filteredChildren });
-            }
+  const handleSort = (columnId: ColumnId) => {
+    setSortConfig(current => {
+      if (current?.columnId === columnId) {
+        if (current.direction === 'asc') {
+          return { columnId, direction: 'desc' };
         }
-        return result;
+        // Third click clears sort
+        return null;
+      }
+      // First click on a new column
+      return { columnId, direction: 'asc' };
+    });
+  };
+
+  const sortedAndFilteredTasks = useMemo(() => {
+    let processedTasks: Task[];
+
+    // --- Filtering ---
+    if (!searchQuery) {
+      processedTasks = tasks;
+    } else {
+      const lowercasedQuery = searchQuery.toLowerCase();
+      const filterRecursively = (taskArray: Task[]): Task[] => {
+          const result: Task[] = [];
+          for (const task of taskArray) {
+              let childrenMatch = false;
+              let filteredChildren: Task[] | undefined = undefined;
+
+              if (task.children) {
+                  filteredChildren = filterRecursively(task.children);
+                  if (filteredChildren.length > 0) childrenMatch = true;
+              }
+              const selfMatch = task.name.toLowerCase().includes(lowercasedQuery) || task.assignees.some(a => a.name.toLowerCase().includes(lowercasedQuery));
+
+              if (selfMatch || childrenMatch) {
+                  result.push({ ...task, isExpanded: childrenMatch || task.isExpanded, children: filteredChildren });
+              }
+          }
+          return result;
+      };
+      processedTasks = filterRecursively(tasks);
+    }
+    
+    // --- Sorting ---
+    if (!sortConfig) {
+      return processedTasks;
+    }
+
+    const { columnId, direction } = sortConfig;
+
+    const parseDate = (dateStr: string): Date => {
+        if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return new Date(0);
+        const [day, month, year] = dateStr.split('/').map(Number);
+        return new Date(year, month - 1, day);
     };
-    return filterRecursively(tasks);
-  }, [tasks, searchQuery]);
+
+    const getComparableValue = (task: Task, column: ColumnId): string | number => {
+        switch (column) {
+            case 'name': return task.name.toLowerCase();
+            case 'status': return task.status;
+            case 'assignee': return task.assignees[0]?.name.toLowerCase() || '';
+            case 'dates': return parseDate(task.startDate).getTime();
+            case 'progress': return task.progress?.percentage ?? -1;
+            case 'details': return 0;
+            default: return 0;
+        }
+    };
+
+    const sortRecursively = (taskArray: Task[]): Task[] => {
+      const sortedArray = [...taskArray].sort((a, b) => {
+        const aValue = getComparableValue(a, columnId);
+        const bValue = getComparableValue(b, columnId);
+
+        let comparison = 0;
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          comparison = aValue.localeCompare(bValue);
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+          comparison = aValue - bValue;
+        }
+        
+        return direction === 'asc' ? comparison : -comparison;
+      });
+
+      return sortedArray.map(task => ({
+        ...task,
+        children: task.children ? sortRecursively(task.children) : undefined
+      }));
+    };
+    
+    return sortRecursively(processedTasks);
+
+  }, [tasks, searchQuery, sortConfig]);
 
   const visibleTaskIds = useMemo(() => {
     const getVisibleIds = (currentTasks: Task[]): number[] => {
@@ -217,8 +290,8 @@ const App: React.FC = () => {
       }
       return ids;
     };
-    return getVisibleIds(filteredTasks);
-  }, [filteredTasks]);
+    return getVisibleIds(sortedAndFilteredTasks);
+  }, [sortedAndFilteredTasks]);
   
   const rowNumberMap = useMemo(() => {
     const map = new Map<number, number>();
@@ -229,9 +302,9 @@ const App: React.FC = () => {
         if (task.children) generateMap(task.children);
       }
     };
-    generateMap(filteredTasks);
+    generateMap(sortedAndFilteredTasks);
     return map;
-  }, [filteredTasks]);
+  }, [sortedAndFilteredTasks]);
 
   const handleToggleRow = useCallback((taskId: number) => {
     setSelectedTaskIds(prev => {
@@ -310,7 +383,7 @@ const App: React.FC = () => {
                 <SettingsMenu 
                   columns={activeView.columns}
                   setColumns={handleSetColumns}
-                  displayDensity={activeView.displayDensity || 'compact'}
+                  displayDensity={activeView.displayDensity || 'standard'}
                   setDisplayDensity={handleSetDisplayDensity}
                   showGridLines={activeView.showGridLines || false}
                   setShowGridLines={handleSetShowGridLines}
@@ -324,7 +397,7 @@ const App: React.FC = () => {
         <div className="flex-grow flex relative overflow-hidden">
           <main ref={mainContainerRef} className="overflow-auto flex-grow w-full h-full">
             {activeView && <ProjectTable 
-                tasks={filteredTasks} 
+                tasks={sortedAndFilteredTasks} 
                 columns={activeView.columns}
                 setColumns={handleSetColumns}
                 onToggle={toggleTaskExpansion} 
@@ -338,8 +411,10 @@ const App: React.FC = () => {
                 onUpdateTask={handleUpdateTask}
                 isScrolled={isScrolled}
                 onShowDetails={handleShowDetailsById}
-                displayDensity={activeView.displayDensity || 'compact'}
+                displayDensity={activeView.displayDensity || 'standard'}
                 showGridLines={activeView.showGridLines || false}
+                sortConfig={sortConfig}
+                onSort={handleSort}
             />}
           </main>
           <ItemDetailsPanel task={detailedTask} onClose={() => setDetailedTask(null)} />

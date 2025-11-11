@@ -1,4 +1,5 @@
 
+
 export enum Status {
   InProgress = 'In Progress',
   Completed = 'Completed',
@@ -30,6 +31,11 @@ export interface Assignee {
   avatarColor: string;
 }
 
+export interface Progress {
+  percentage: number;
+  history?: number[];
+}
+
 export interface Task {
   id: number;
   name:string;
@@ -44,9 +50,10 @@ export interface Task {
   // FIX: Add optional priority and impact properties to the Task interface.
   priority?: Priority;
   impact?: Impact;
+  progress?: Progress;
 }
 
-export type ColumnId = 'name' | 'status' | 'assignee' | 'dates';
+export type ColumnId = 'name' | 'status' | 'assignee' | 'dates' | 'progress' | 'details';
 
 export interface Column {
   id: ColumnId;

@@ -1,6 +1,12 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Task, Column, ColumnId, DisplayDensity } from '../types';
 import TableRow from './TableRow';
+import { ArrowDownIcon, ArrowUpIcon, SortIcon } from './Icons';
+
+type SortConfig = {
+  columnId: ColumnId;
+  direction: 'asc' | 'desc';
+} | null;
 
 interface ProjectTableProps {
   tasks: Task[];
@@ -19,6 +25,8 @@ interface ProjectTableProps {
   displayDensity: DisplayDensity;
   showGridLines: boolean;
   onShowDetails: (taskId: number) => void;
+  sortConfig: SortConfig;
+  onSort: (columnId: ColumnId) => void;
 }
 
 const Resizer: React.FC<{ onMouseDown: (e: React.MouseEvent) => void }> = ({ onMouseDown }) => (
@@ -56,6 +64,8 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
   displayDensity,
   showGridLines,
   onShowDetails,
+  sortConfig,
+  onSort,
 }) => {
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
   const headerRef = useRef<HTMLTableRowElement>(null);
@@ -190,8 +200,14 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
             <th 
               key={col.id} 
               scope="col" 
-              className={`${headerHeightClass} px-6 font-semibold border-b border-gray-200 relative group cursor-grab align-middle ${showGridLines ? 'border-r border-gray-200' : ''}`}
+              className={`${headerHeightClass} px-6 font-semibold border-b border-gray-200 relative group cursor-pointer align-middle ${showGridLines ? 'border-r border-gray-200' : ''}`}
               style={{ width: col.width, zIndex: 5 }}
+              onClick={(e) => {
+                if (col.id === 'details') return;
+                // Prevent sorting when clicking on the resizer handle
+                if ((e.target as HTMLElement).closest('.absolute.top-0.right-0')) return;
+                onSort(col.id);
+              }}
               draggable
               onDragStart={(e) => handleDragStartHeader(e, col.id)}
               onDragOver={(e) => handleDragOverHeader(e, col.id)}
@@ -201,13 +217,19 @@ const ProjectTable: React.FC<ProjectTableProps> = ({
               {dropIndicator?.id === col.id && (
                 <div className={`absolute top-0 h-full w-1 bg-blue-500 rounded-full ${dropIndicator.position === 'left' ? 'left-0' : 'right-0'}`} style={{ zIndex: 20 }} />
               )}
-              {col.label}
+              <div className={`flex items-center gap-1 ${col.id === 'details' ? 'justify-center' : ''}`}>
+                {col.label}
+                {sortConfig?.columnId === col.id ? (
+                  sortConfig.direction === 'asc' ? 
+                    <ArrowUpIcon className="w-4 h-4 text-gray-600" /> : 
+                    <ArrowDownIcon className="w-4 h-4 text-gray-600" />
+                ) : (
+                  col.id !== 'details' && <SortIcon className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                )}
+              </div>
               <Resizer onMouseDown={onMouseDown(col.id, col.minWidth)} />
             </th>
           ))}
-          <th scope="col" className={`${headerHeightClass} w-20 px-4 font-semibold border-b border-gray-200`}>
-            Details
-          </th>
           <th scope="col" className={`${headerHeightClass} w-auto border-b border-gray-200`}></th>
         </tr>
       </thead>

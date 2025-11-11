@@ -1,84 +1,124 @@
-
 import React, { useState, useEffect } from 'react';
-import { Task } from '../types';
-import { XIcon } from './Icons';
+import { Task, Progress } from '../types';
+import { XIcon, ArrowUpIcon, ArrowDownIcon, MoreHorizontalIcon } from './Icons';
+import { InteractiveProgressChart } from './TaskElements';
 
 interface ItemDetailsPanelProps {
   task: Task | null;
   onClose: () => void;
 }
 
+const ProgressStats: React.FC<{ progress: Progress }> = ({ progress }) => {
+  const { percentage, history = [] } = progress;
+
+  let trend: 'up' | 'down' | 'flat' = 'flat';
+  if (history.length > 1) {
+    const start = history[0];
+    const end = history[history.length - 1];
+    if (end > start) trend = 'up';
+    else if (end < start) trend = 'down';
+  }
+  
+  const trendInfo = {
+    up: { text: "Trending Up", icon: ArrowUpIcon, color: "text-green-600" },
+    down: { text: "Trending Down", icon: ArrowDownIcon, color: "text-red-600" },
+    flat: { text: "Flat", icon: MoreHorizontalIcon, color: "text-gray-600" },
+  };
+  const TrendIcon = trendInfo[trend].icon;
+
+  return (
+    <div className="flex items-center gap-6">
+      <div>
+        <div className="text-xs text-gray-500">Current Progress</div>
+        <div className="text-2xl font-bold text-gray-800">{percentage}%</div>
+      </div>
+      <div>
+        <div className="text-xs text-gray-500">Trend</div>
+        <div className={`flex items-center gap-1 text-sm font-semibold ${trendInfo[trend].color}`}>
+          <TrendIcon className="w-4 h-4" />
+          <span>{trendInfo[trend].text}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ItemDetailsPanel: React.FC<ItemDetailsPanelProps> = ({ task, onClose }) => {
-  const [displayedTask, setDisplayedTask] = useState<Task | null>(task);
-  const [isVisible, setIsVisible] = useState(!!task);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     if (task) {
-      setDisplayedTask(task);
-      setIsVisible(true);
+      setIsOpen(true);
     } else {
-      setIsVisible(false);
-      // Wait for animation to finish before clearing content
-      const timer = setTimeout(() => {
-        setDisplayedTask(null);
-      }, 300); // This duration must match the CSS transition duration
-
-      return () => clearTimeout(timer);
+      setIsOpen(false);
     }
   }, [task]);
+  
+  const handleClose = () => {
+    setIsOpen(false);
+    // Delay onClose to allow for transition
+    setTimeout(onClose, 300);
+  };
 
   return (
     <aside
-      className={`absolute top-0 right-0 h-full w-96 bg-white border-l border-gray-200 shadow-lg transition-transform duration-300 ease-in-out z-40 ${
-        isVisible ? 'translate-x-0' : 'translate-x-full'
+      className={`absolute top-0 right-0 h-full bg-white border-l border-gray-200 z-30 transition-transform duration-300 ease-in-out ${
+        isOpen ? 'translate-x-0' : 'translate-x-full'
       }`}
-      aria-hidden={!isVisible}
+      style={{ width: '400px' }}
       role="dialog"
-      aria-labelledby="item-details-heading"
+      aria-modal="true"
+      aria-labelledby="details-panel-title"
     >
-      {displayedTask && (
+      {task && (
         <div className="flex flex-col h-full">
-          <header className="p-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
-            <h2 id="item-details-heading" className="text-lg font-semibold text-gray-800">Item Details</h2>
-            <button
-              onClick={onClose}
-              className="p-1 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-              aria-label="Close details panel"
-            >
+          <header className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
+            <h2 id="details-panel-title" className="text-lg font-semibold text-gray-800 truncate">{task.name}</h2>
+            <button onClick={handleClose} className="p-1 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800" aria-label="Close details">
               <XIcon className="w-5 h-5" />
             </button>
           </header>
-          <div className="p-6 overflow-y-auto flex-grow">
-            <div className="space-y-4">
+          <div className="flex-grow p-6 overflow-y-auto">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Details</h3>
+            
+            {task.progress && (
+                <div className="mb-6">
+                    <h4 className="text-md font-semibold text-gray-700 mb-3">Progress Overview</h4>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="mb-4">
+                            <ProgressStats progress={task.progress} />
+                        </div>
+                        <InteractiveProgressChart progress={task.progress} />
+                    </div>
+                </div>
+            )}
+            
+            <dl className="space-y-4">
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Task Name</h3>
-                <p className="mt-1 text-gray-800">{displayedTask.name}</p>
+                <dt className="text-xs text-gray-500">Status</dt>
+                <dd className="text-sm font-medium text-gray-800">{task.status}</dd>
               </div>
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Status</h3>
-                <p className="mt-1 text-gray-800">{displayedTask.status}</p>
+                <dt className="text-xs text-gray-500">Assignees</dt>
+                <dd className="text-sm font-medium text-gray-800">{task.assignees.map(a => a.name).join(', ')}</dd>
               </div>
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Assignees</h3>
-                <p className="mt-1 text-gray-800">{displayedTask.assignees.map(a => a.name).join(', ')}</p>
+                <dt className="text-xs text-gray-500">Dates</dt>
+                <dd className="text-sm font-medium text-gray-800">{task.startDate} - {task.dueDate}</dd>
               </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Dates</h3>
-                <p className="mt-1 text-gray-800">{displayedTask.startDate} - {displayedTask.dueDate}</p>
-              </div>
-              {displayedTask.priority && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Priority</h3>
-                  <p className="mt-1 text-gray-800">{displayedTask.priority}</p>
+               {task.priority && (
+                 <div>
+                    <dt className="text-xs text-gray-500">Priority</dt>
+                    <dd className="text-sm font-medium text-gray-800">{task.priority}</dd>
                 </div>
               )}
-              {displayedTask.impact && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Impact</h3>
-                  <p className="mt-1 text-gray-800">{displayedTask.impact}</p>
+               {task.impact && (
+                 <div>
+                    <dt className="text-xs text-gray-500">Impact</dt>
+                    <dd className="text-sm font-medium text-gray-800">{task.impact}</dd>
                 </div>
               )}
-            </div>
+            </dl>
           </div>
         </div>
       )}

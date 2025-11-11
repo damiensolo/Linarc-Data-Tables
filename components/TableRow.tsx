@@ -1,7 +1,7 @@
 import React, { Fragment, useEffect, useRef } from 'react';
 import { Task, Status, Column, ColumnId, DisplayDensity } from '../types';
 import { ChevronRightIcon, ChevronDownIcon, DocumentIcon } from './Icons';
-import { StatusDisplay, AssigneeAvatar, StatusSelector } from './TaskElements';
+import { StatusDisplay, AssigneeAvatar, StatusSelector, ProgressDisplay } from './TaskElements';
 
 interface TableRowProps {
   task: Task;
@@ -191,6 +191,18 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
               return <AssigneeCellContent task={task} />;
           case 'dates':
               return <DateCellContent task={task} isEditing={isEditing} onEdit={onEditCell} onUpdateTask={onUpdateTask} />;
+          case 'progress':
+              return task.progress ? <ProgressDisplay progress={task.progress} /> : null;
+          case 'details':
+              return (
+                <button 
+                    onClick={() => onShowDetails(task.id)} 
+                    className="p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                    aria-label={`View details for ${task.name}`}
+                >
+                    <ChevronRightIcon className="w-5 h-5" />
+                </button>
+              );
           default:
               return null;
       }
@@ -229,6 +241,13 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
                     cellClasses += ' hover:outline-blue-400 hover:outline hover:outline-1 hover:-outline-offset-1';
                 }
             }
+
+            let wrapperClass = "flex items-center h-full w-full";
+            if (col.id === 'details') {
+                wrapperClass += " justify-center";
+            } else {
+                wrapperClass += " px-6";
+            }
             
             return (
                  <td 
@@ -236,23 +255,12 @@ const TableRow: React.FC<TableRowProps> = ({ task, level, onToggle, rowNumberMap
                     className={cellClasses}
                     onClick={isEditable && !isEditing ? () => onEditCell({ taskId: task.id, column: col.id }) : undefined}
                 >
-                    <div className="flex items-center h-full px-6 w-full">
+                    <div className={wrapperClass}>
                       {getCellContent(col.id)}
                     </div>
                 </td>
             )
         })}
-        <td className={`${rowHeightClass} border-b border-gray-200 px-4 ${showGridLines ? 'border-r border-gray-200' : ''}`}>
-            <div className="flex items-center justify-center h-full">
-                <button 
-                    onClick={() => onShowDetails(task.id)} 
-                    className="p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                    aria-label={`View details for ${task.name}`}
-                >
-                    <ChevronRightIcon className="w-5 h-5" />
-                </button>
-            </div>
-        </td>
         <td className={`${rowHeightClass} border-b border-gray-200`}></td>
       </tr>
       {task.children && task.isExpanded && task.children?.map(child => (
