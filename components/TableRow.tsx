@@ -1,4 +1,3 @@
-
 import React, { Fragment, useEffect, useRef } from 'react';
 import { Task, Status, Column, ColumnId, DisplayDensity } from '../types';
 import { ChevronRightIcon, ChevronDownIcon, DocumentIcon } from './Icons';
@@ -46,20 +45,21 @@ const getRowHeight = (density: DisplayDensity) => {
 
 const SelectionCell: React.FC<{ task: Task, isSelected: boolean, onToggleRow: (id: number) => void, rowNum?: number, isScrolled: boolean, rowHeightClass: string }> = ({ task, isSelected, onToggleRow, rowNum, isScrolled, rowHeightClass }) => {
   const taskNameId = `task-name-${task.id}`;
-  const cellClasses = `sticky left-0 z-10 ${rowHeightClass} px-2 w-10 text-center text-gray-500 border-b border-r border-gray-200 transition-shadow duration-200 ${
+  const cellClasses = `sticky left-0 z-10 ${rowHeightClass} px-2 w-14 text-center text-gray-500 border-b border-r border-gray-200 transition-shadow duration-200 cursor-pointer ${
     isSelected 
       ? 'bg-indigo-50 group-hover:bg-indigo-100' 
       : 'bg-white group-hover:bg-gray-50'
   } ${isScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.05)]' : ''}`;
 
   return (
-    <td className={cellClasses}>
+    <td className={cellClasses} onClick={() => onToggleRow(task.id)}>
         <div className="flex items-center justify-center h-full">
             <span className={isSelected ? 'hidden' : 'group-hover:hidden'}>{rowNum}</span>
             <input
               type="checkbox"
               checked={isSelected}
               onChange={() => onToggleRow(task.id)}
+              onClick={(e) => e.stopPropagation()}
               aria-labelledby={taskNameId}
               className={`h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mx-auto ${isSelected ? 'block' : 'hidden group-hover:block'}`}
             />

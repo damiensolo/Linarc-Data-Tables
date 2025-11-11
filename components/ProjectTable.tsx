@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Task, Column, ColumnId, DisplayDensity } from '../types';
 import TableRow from './TableRow';

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Column, ColumnId, DisplayDensity } from '../types';
 import { GripVerticalIcon } from './Icons';
