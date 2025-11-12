@@ -51,9 +51,14 @@ export interface Task {
   priority?: Priority;
   impact?: Impact;
   progress?: Progress;
+  health?: {
+    name: string;
+    status: 'complete' | 'at_risk' | 'blocked';
+    details?: string;
+  }[];
 }
 
-export type ColumnId = 'name' | 'status' | 'assignee' | 'dates' | 'progress' | 'details';
+export type ColumnId = 'name' | 'status' | 'assignee' | 'dates' | 'progress' | 'details' | 'priority' | 'impact';
 
 export interface Column {
   id: ColumnId;
@@ -65,10 +70,29 @@ export interface Column {
 
 export type DisplayDensity = 'compact' | 'standard' | 'comfortable';
 
+export type SortConfig = {
+  columnId: ColumnId;
+  direction: 'asc' | 'desc';
+} | null;
+
+export type TextOperator = 'contains' | 'not_contains' | 'is' | 'is_not' | 'is_empty' | 'is_not_empty';
+export type EnumOperator = 'is' | 'is_not' | 'is_empty' | 'is_not_empty';
+export type FilterOperator = TextOperator | EnumOperator;
+
+export interface FilterRule {
+  id: string;
+  columnId: ColumnId;
+  operator: FilterOperator;
+  value?: string | string[]; // string for text, string[] for enums
+}
+
 export interface View {
   id: string;
   name: string;
   columns: Column[];
   displayDensity?: DisplayDensity;
   showGridLines?: boolean;
+  sortConfig?: SortConfig;
+  searchQuery?: string;
+  filters?: FilterRule[];
 }

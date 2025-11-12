@@ -2,7 +2,7 @@ import React, { Fragment } from 'react';
 import { Task, Status, Priority } from '../types';
 import { ChevronRightIcon, ChevronDownIcon, DocumentIcon } from './Icons';
 import { AssigneeAvatar, PrioritySelector } from './TaskElements';
-import { parseDate, getDaysDiff } from './GanttChartView';
+import { parseDate, getDaysDiff } from './dateUtils';
 
 interface GanttRowProps {
   task: Task;

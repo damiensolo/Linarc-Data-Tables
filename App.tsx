@@ -1,48 +1,52 @@
+
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { MOCK_TASKS, DEFAULT_COLUMNS } from './constants';
-import { Task, Column, View, DisplayDensity, ColumnId } from './types';
+import { Task, Column, View, DisplayDensity, ColumnId, SortConfig, FilterRule, Priority } from './types';
 import ProjectTable from './components/ProjectTable';
-import { PlusIcon, SearchIcon, SettingsIcon } from './components/Icons';
+import { PlusIcon, FilterIcon, SettingsIcon, SearchIcon } from './components/Icons';
 import SettingsMenu from './components/FieldsMenu';
 import ViewTabs from './components/ViewTabs';
 import CreateViewModal from './components/CreateViewModal';
 import ItemDetailsPanel from './components/ItemDetailsPanel';
+import FilterMenu from './components/FilterMenu';
+import ViewModeSwitcher, { ViewMode } from './components/ViewModeSwitcher';
+import BoardView from './components/BoardView';
+import GanttChartView from './components/GanttChartView';
+import LookaheadView from './components/LookaheadView';
+
 
 const VIEWS_STORAGE_KEY = 'project-table-views';
 const ACTIVE_VIEW_STORAGE_KEY = 'project-table-active-view-id';
 const DEFAULT_VIEW_ID = 'project-table-default-view-id';
 
-type SortConfig = {
-  columnId: ColumnId;
-  direction: 'asc' | 'desc';
-} | null;
-
 const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedTaskIds, setSelectedTaskIds] = useState(new Set<number>());
   const [editingCell, setEditingCell] = useState<{ taskId: number; column: string } | null>(null);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [isCreateViewModalOpen, setIsCreateViewModalOpen] = useState(false);
   const [renamingView, setRenamingView] = useState<View | null>(null);
   const mainContainerRef = useRef<HTMLElement>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [detailedTask, setDetailedTask] = useState<Task | null>(null);
-  const [sortConfig, setSortConfig] = useState<SortConfig>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
+
 
   useEffect(() => {
     const container = mainContainerRef.current;
-    if (!container) return;
+    if (!container || viewMode !== 'table') {
+        setIsScrolled(false);
+        return;
+    };
 
     const handleScroll = () => {
-      // Add a small threshold to prevent shadow on minimal scroll
       setIsScrolled(container.scrollLeft > 1);
     };
 
     container.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll(); // Initial check
+    handleScroll(); 
 
-    // Also check on window resize when scrollbar may appear/disappear
     const observer = new ResizeObserver(handleScroll);
     observer.observe(container);
 
@@ -50,23 +54,29 @@ const App: React.FC = () => {
       container.removeEventListener('scroll', handleScroll);
       observer.disconnect();
     };
-  }, []);
+  }, [viewMode]);
 
-  const [views, setViews] = useState<View[]>(() => {
+  // FIX: Use useMemo to safely compute initial views from localStorage once.
+  // This resolves both the try...catch syntax error and the invalid dependency
+  // between the useState initializers for 'views' and 'activeViewId'.
+  const initialViews = useMemo<View[]>(() => {
     try {
       const savedViews = localStorage.getItem(VIEWS_STORAGE_KEY);
       if (savedViews) return JSON.parse(savedViews);
     } catch (error) {
       console.error("Failed to parse views from localStorage", error);
     }
-    return [{ id: 'default', name: 'Table', columns: DEFAULT_COLUMNS, displayDensity: 'standard', showGridLines: false }];
-  });
+    return [{ id: 'default', name: 'Table', columns: DEFAULT_COLUMNS, displayDensity: 'standard', showGridLines: false, sortConfig: null, filters: [], searchQuery: '' }];
+  }, []);
+
+  const [views, setViews] = useState<View[]>(initialViews);
 
   const [activeViewId, setActiveViewId] = useState<string>(() => {
     const savedActiveId = localStorage.getItem(ACTIVE_VIEW_STORAGE_KEY);
     const defaultViewId = localStorage.getItem(DEFAULT_VIEW_ID);
-    return savedActiveId || defaultViewId || views[0]?.id || 'default';
+    return savedActiveId || defaultViewId || initialViews[0]?.id || 'default';
   });
+
 
   useEffect(() => {
     try {
@@ -86,6 +96,9 @@ const App: React.FC = () => {
   
   const activeView = useMemo(() => views.find(v => v.id === activeViewId) || views[0], [views, activeViewId]);
   
+  // FIX: Removed local sortConfig state and effects. sortConfig is now derived directly from activeView.
+  const sortConfig = activeView?.sortConfig || null;
+
   const handleSetColumns = (newColumnsFunc: React.SetStateAction<Column[]>) => {
     setViews(prevViews => prevViews.map(view => {
       if (view.id === activeViewId) {
@@ -94,6 +107,18 @@ const App: React.FC = () => {
       }
       return view;
     }));
+  };
+  
+  const handleSetSearchQuery = (query: string) => {
+    setViews(prevViews => prevViews.map(view => 
+        view.id === activeViewId ? { ...view, searchQuery: query } : view
+    ));
+  };
+
+  const handleSetFilters = (filters: FilterRule[]) => {
+    setViews(prevViews => prevViews.map(view => 
+        view.id === activeViewId ? { ...view, filters } : view
+    ));
   };
 
   const handleSetDisplayDensity = (density: DisplayDensity) => {
@@ -123,9 +148,12 @@ const App: React.FC = () => {
     const newView: View = {
       id: `view_${Date.now()}`,
       name,
-      columns: activeView.columns, // Clone columns from the current view
+      columns: activeView.columns,
       displayDensity: activeView.displayDensity || 'standard',
       showGridLines: activeView.showGridLines || false,
+      sortConfig: activeView.sortConfig,
+      searchQuery: activeView.searchQuery || '',
+      filters: activeView.filters || [],
     };
     setViews(prev => [...prev, newView]);
     setActiveViewId(newView.id);
@@ -149,7 +177,6 @@ const App: React.FC = () => {
 
   const handleSetDefaultView = (viewId: string) => {
     localStorage.setItem(DEFAULT_VIEW_ID, viewId);
-    // This is just a marker, no state change needed, but you could add a visual indicator.
   };
 
   const handleUpdateTask = useCallback((taskId: number, updatedValues: Partial<Omit<Task, 'id' | 'children'>>) => {
@@ -170,6 +197,10 @@ const App: React.FC = () => {
     }
   }, [detailedTask]);
 
+  const handlePriorityChange = useCallback((taskId: number, priority: Priority) => {
+    handleUpdateTask(taskId, { priority });
+  }, [handleUpdateTask]);
+
   const toggleTaskExpansion = useCallback((taskId: number) => {
     setEditingCell(null);
     const updateExpansion = (currentTasks: Task[]): Task[] => {
@@ -187,46 +218,113 @@ const App: React.FC = () => {
   }, []);
 
   const handleSort = (columnId: ColumnId) => {
-    setSortConfig(current => {
-      if (current?.columnId === columnId) {
-        if (current.direction === 'asc') {
-          return { columnId, direction: 'desc' };
-        }
-        // Third click clears sort
-        return null;
+    const current = sortConfig;
+    let newSortConfig: SortConfig = { columnId, direction: 'asc' };
+
+    if (current?.columnId === columnId) {
+      if (current.direction === 'asc') {
+        newSortConfig = { columnId, direction: 'desc' };
+      } else {
+        newSortConfig = null;
       }
-      // First click on a new column
-      return { columnId, direction: 'asc' };
-    });
+    }
+
+    setViews(prevViews => prevViews.map(view =>
+      view.id === activeViewId ? { ...view, sortConfig: newSortConfig } : view
+    ));
   };
 
   const sortedAndFilteredTasks = useMemo(() => {
-    let processedTasks: Task[];
+    let processedTasks: Task[] = [...tasks];
+    const filters = activeView?.filters;
+    const searchQuery = activeView?.searchQuery?.toLowerCase() || '';
 
-    // --- Filtering ---
-    if (!searchQuery) {
-      processedTasks = tasks;
-    } else {
-      const lowercasedQuery = searchQuery.toLowerCase();
+    // --- Search Query Filtering ---
+    if (searchQuery) {
+        const searchFilterRecursively = (taskArray: Task[]): Task[] => {
+            const result: Task[] = [];
+            for (const task of taskArray) {
+                const selfMatches = task.name.toLowerCase().includes(searchQuery);
+                const filteredChildren = task.children ? searchFilterRecursively(task.children) : undefined;
+                const hasMatchingChildren = !!filteredChildren && filteredChildren.length > 0;
+
+                if (selfMatches) {
+                    result.push({ ...task, children: filteredChildren || task.children });
+                } else if (hasMatchingChildren) {
+                    result.push({ ...task, children: filteredChildren, isExpanded: true });
+                }
+            }
+            return result;
+        };
+        processedTasks = searchFilterRecursively(processedTasks);
+    }
+
+    // --- Advanced Filtering ---
+    if (filters && filters.length > 0) {
+      const checkFilterRule = (task: Task, rule: FilterRule): boolean => {
+          const { columnId, operator, value } = rule;
+          
+          const isEmptyOp = operator === 'is_empty';
+          const isNotEmptyOp = operator === 'is_not_empty';
+
+          switch (columnId) {
+              case 'name':
+                  const name = task.name.toLowerCase();
+                  if (isEmptyOp) return name === '';
+                  if (isNotEmptyOp) return name !== '';
+                  const strValue = String(value || '').toLowerCase();
+                  if (operator === 'contains') return name.includes(strValue);
+                  if (operator === 'not_contains') return !name.includes(strValue);
+                  if (operator === 'is') return name === strValue;
+                  if (operator === 'is_not') return name !== strValue;
+                  break;
+              case 'status':
+              case 'priority':
+              case 'impact':
+                  const enumValue = task[columnId];
+                  if (isEmptyOp) return !enumValue;
+                  if (isNotEmptyOp) return !!enumValue;
+                  const arrValue = value as string[] || [];
+                  if (operator === 'is') return arrValue.includes(enumValue!);
+                  if (operator === 'is_not') return !arrValue.includes(enumValue!);
+                  break;
+              case 'assignee':
+                  if (isEmptyOp) return task.assignees.length === 0;
+                  if (isNotEmptyOp) return task.assignees.length > 0;
+                  const assigneeValues = value as string[] || [];
+                  if (operator === 'is') return task.assignees.some(a => assigneeValues.includes(a.id));
+                  if (operator === 'is_not') return !task.assignees.some(a => assigneeValues.includes(a.id));
+                  break;
+              case 'dates':
+                  const datesStr = `${task.startDate} - ${task.dueDate}`.toLowerCase();
+                  if (isEmptyOp) return datesStr.trim() === '-';
+                  if (isNotEmptyOp) return datesStr.trim() !== '-';
+                  const dateStrValue = String(value || '').toLowerCase();
+                  if (operator === 'contains') return datesStr.includes(dateStrValue);
+                  if (operator === 'not_contains') return !datesStr.includes(dateStrValue);
+                  break;
+          }
+          return false;
+      };
+
+      const checkAllFilters = (task: Task) => filters.every(rule => checkFilterRule(task, rule));
+
       const filterRecursively = (taskArray: Task[]): Task[] => {
           const result: Task[] = [];
           for (const task of taskArray) {
-              let childrenMatch = false;
-              let filteredChildren: Task[] | undefined = undefined;
+              const selfMatches = checkAllFilters(task);
+              const filteredChildren = task.children ? filterRecursively(task.children) : undefined;
+              const hasMatchingChildren = !!filteredChildren && filteredChildren.length > 0;
 
-              if (task.children) {
-                  filteredChildren = filterRecursively(task.children);
-                  if (filteredChildren.length > 0) childrenMatch = true;
-              }
-              const selfMatch = task.name.toLowerCase().includes(lowercasedQuery) || task.assignees.some(a => a.name.toLowerCase().includes(lowercasedQuery));
-
-              if (selfMatch || childrenMatch) {
-                  result.push({ ...task, isExpanded: childrenMatch || task.isExpanded, children: filteredChildren });
+              if (selfMatches) {
+                  result.push({ ...task, children: filteredChildren || task.children });
+              } else if (hasMatchingChildren) {
+                  result.push({ ...task, children: filteredChildren, isExpanded: true });
               }
           }
           return result;
       };
-      processedTasks = filterRecursively(tasks);
+      processedTasks = filterRecursively(processedTasks);
     }
     
     // --- Sorting ---
@@ -249,7 +347,6 @@ const App: React.FC = () => {
             case 'assignee': return task.assignees[0]?.name.toLowerCase() || '';
             case 'dates': return parseDate(task.startDate).getTime();
             case 'progress': return task.progress?.percentage ?? -1;
-            case 'details': return 0;
             default: return 0;
         }
     };
@@ -277,7 +374,7 @@ const App: React.FC = () => {
     
     return sortRecursively(processedTasks);
 
-  }, [tasks, searchQuery, sortConfig]);
+  }, [tasks, activeView]);
 
   const visibleTaskIds = useMemo(() => {
     const getVisibleIds = (currentTasks: Task[]): number[] => {
@@ -343,11 +440,82 @@ const App: React.FC = () => {
       if(task) setDetailedTask(task);
   }
 
+  const hasActiveFilters = (activeView?.filters?.length || 0) > 0;
+
+  const renderActiveView = () => {
+    if (!activeView) return null;
+
+    switch(viewMode) {
+      case 'table':
+        return <ProjectTable 
+                  tasks={sortedAndFilteredTasks} 
+                  columns={activeView.columns}
+                  setColumns={handleSetColumns}
+                  onToggle={toggleTaskExpansion} 
+                  selectedTaskIds={selectedTaskIds}
+                  visibleTaskIds={visibleTaskIds}
+                  onToggleRow={handleToggleRow}
+                  onToggleAll={handleToggleAll}
+                  rowNumberMap={rowNumberMap}
+                  editingCell={editingCell}
+                  onEditCell={setEditingCell}
+                  onUpdateTask={handleUpdateTask}
+                  isScrolled={isScrolled}
+                  onShowDetails={handleShowDetailsById}
+                  displayDensity={activeView.displayDensity || 'standard'}
+                  showGridLines={activeView.showGridLines || false}
+                  sortConfig={sortConfig}
+                  onSort={handleSort}
+              />;
+      case 'board':
+        return <BoardView tasks={sortedAndFilteredTasks} onPriorityChange={handlePriorityChange} />;
+      case 'gantt':
+        return <GanttChartView tasks={sortedAndFilteredTasks} onToggle={toggleTaskExpansion} onPriorityChange={handlePriorityChange} />;
+      case 'lookahead':
+        return <LookaheadView />;
+      default:
+        return null;
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 font-sans p-4 sm:p-6 lg:p-8">
       <div className="max-w-full mx-auto bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col" style={{height: 'calc(100vh - 4rem)'}}>
         <header className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-shrink-0 relative z-40">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={activeView?.searchQuery || ''}
+                onChange={(e) => handleSetSearchQuery(e.target.value)}
+                className="w-64 pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                aria-label="Search tasks"
+              />
+            </div>
+            <div className="relative">
+              <button
+                onClick={() => setIsFilterMenuOpen(prev => !prev)}
+                className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-100 ${hasActiveFilters ? 'text-indigo-600 bg-indigo-50 border-indigo-200 hover:bg-indigo-100' : 'text-gray-600'}`}
+              >
+                <FilterIcon className="w-4 h-4" />
+                Filter
+                {hasActiveFilters && (
+                  <span className="bg-indigo-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{activeView.filters?.length}</span>
+                )}
+              </button>
+              {isFilterMenuOpen && activeView && (
+                <FilterMenu 
+                  filters={activeView.filters || []}
+                  setFilters={handleSetFilters}
+                  onClose={() => setIsFilterMenuOpen(false)}
+                />
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-4 flex-wrap">
+            <ViewModeSwitcher activeMode={viewMode} onModeChange={setViewMode} />
             <ViewTabs
               views={views}
               activeViewId={activeViewId}
@@ -359,18 +527,6 @@ const App: React.FC = () => {
               onReorderViews={setViews}
               defaultViewId={localStorage.getItem(DEFAULT_VIEW_ID)}
             />
-            <div className="relative">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search tasks..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 w-64"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
             <div className="relative">
               <button
                 onClick={() => setIsSettingsMenuOpen(prev => !prev)}
@@ -395,29 +551,10 @@ const App: React.FC = () => {
           </div>
         </header>
         <div className="flex-grow flex relative overflow-hidden">
-          <main ref={mainContainerRef} className="overflow-auto flex-grow w-full h-full">
-            {activeView && <ProjectTable 
-                tasks={sortedAndFilteredTasks} 
-                columns={activeView.columns}
-                setColumns={handleSetColumns}
-                onToggle={toggleTaskExpansion} 
-                selectedTaskIds={selectedTaskIds}
-                visibleTaskIds={visibleTaskIds}
-                onToggleRow={handleToggleRow}
-                onToggleAll={handleToggleAll}
-                rowNumberMap={rowNumberMap}
-                editingCell={editingCell}
-                onEditCell={setEditingCell}
-                onUpdateTask={handleUpdateTask}
-                isScrolled={isScrolled}
-                onShowDetails={handleShowDetailsById}
-                displayDensity={activeView.displayDensity || 'standard'}
-                showGridLines={activeView.showGridLines || false}
-                sortConfig={sortConfig}
-                onSort={handleSort}
-            />}
+          <main ref={mainContainerRef} className="flex-grow w-full h-full overflow-auto">
+            {renderActiveView()}
           </main>
-          <ItemDetailsPanel task={detailedTask} onClose={() => setDetailedTask(null)} />
+          <ItemDetailsPanel task={detailedTask} onClose={() => setDetailedTask(null)} onPriorityChange={handlePriorityChange} />
         </div>
         <footer className="p-2 border-t border-gray-200 flex-shrink-0">
           <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium px-2 py-1.5 rounded-md hover:bg-gray-100">

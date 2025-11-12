@@ -1,11 +1,14 @@
+
+
 import React, { useState, useEffect } from 'react';
-import { Task, Progress } from '../types';
-import { XIcon, ArrowUpIcon, ArrowDownIcon, MoreHorizontalIcon } from './Icons';
-import { InteractiveProgressChart } from './TaskElements';
+import { Task, Progress, Priority } from '../types';
+import { XIcon, ArrowUpIcon, ArrowDownIcon, MoreHorizontalIcon, DocumentIcon } from './Icons';
+import { InteractiveProgressChart, PrioritySelector, StatusDisplay, AssigneeAvatar } from './TaskElements';
 
 interface ItemDetailsPanelProps {
   task: Task | null;
   onClose: () => void;
+  onPriorityChange: (taskId: number, priority: Priority) => void;
 }
 
 const ProgressStats: React.FC<{ progress: Progress }> = ({ progress }) => {
@@ -43,20 +46,21 @@ const ProgressStats: React.FC<{ progress: Progress }> = ({ progress }) => {
   );
 };
 
-const ItemDetailsPanel: React.FC<ItemDetailsPanelProps> = ({ task, onClose }) => {
+const HealthStatusDot: React.FC<{ status: 'complete' | 'at_risk' | 'blocked' }> = ({ status }) => {
+  const color = status === 'complete' ? 'bg-green-500' : status === 'at_risk' ? 'bg-yellow-500' : 'bg-red-500';
+  return <span className={`w-3 h-3 rounded-full ${color} flex-shrink-0`}></span>;
+};
+
+
+const ItemDetailsPanel: React.FC<ItemDetailsPanelProps> = ({ task, onClose, onPriorityChange }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    if (task) {
-      setIsOpen(true);
-    } else {
-      setIsOpen(false);
-    }
+    setIsOpen(!!task);
   }, [task]);
   
   const handleClose = () => {
     setIsOpen(false);
-    // Delay onClose to allow for transition
     setTimeout(onClose, 300);
   };
 
@@ -78,12 +82,65 @@ const ItemDetailsPanel: React.FC<ItemDetailsPanelProps> = ({ task, onClose }) =>
               <XIcon className="w-5 h-5" />
             </button>
           </header>
-          <div className="flex-grow p-6 overflow-y-auto">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Details</h3>
+          <div className="flex-grow p-4 overflow-y-auto space-y-6">
             
+            {/* Dashboard Section */}
+            <div className="grid grid-cols-3 gap-2 p-2 bg-gray-50 rounded-lg">
+              <div>
+                <dt className="text-xs text-gray-500 mb-1">Priority</dt>
+                <dd><PrioritySelector taskId={task.id} currentPriority={task.priority} onPriorityChange={onPriorityChange} /></dd>
+              </div>
+               <div>
+                <dt className="text-xs text-gray-500 mb-1">Status</dt>
+                <dd><StatusDisplay status={task.status} /></dd>
+              </div>
+              <div>
+                <dt className="text-xs text-gray-500 mb-1">Assignees</dt>
+                <dd className="flex items-center -space-x-2">
+                    {task.assignees.map(a => <AssigneeAvatar key={a.id} assignee={a} />)}
+                </dd>
+              </div>
+            </div>
+
+            {/* Task Health Section */}
+            {task.health && task.health.length > 0 && (
+                <div>
+                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Task Health</h3>
+                    <ul className="space-y-3">
+                        {task.health.map((item, index) => (
+                            <li key={index} className="flex items-center gap-3" title={item.details}>
+                                <HealthStatusDot status={item.status} />
+                                <span className="text-sm font-medium text-gray-700">{item.name}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            
+            {/* Sub-Items Section */}
+            {task.children && task.children.length > 0 && (
+                <div>
+                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Sub-Items</h3>
+                    <ul className="space-y-2">
+                        {task.children.map(child => (
+                            <li key={child.id} className="flex items-center justify-between p-2 rounded-md bg-gray-50 hover:bg-gray-100">
+                                <div className="flex items-center gap-2">
+                                    <DocumentIcon className="w-4 h-4 text-gray-400" />
+                                    <span className="text-sm font-medium text-gray-800">{child.name}</span>
+                                </div>
+                                <div className="w-28 flex-shrink-0">
+                                  <StatusDisplay status={child.status} />
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            
+            {/* Progress Section */}
             {task.progress && (
-                <div className="mb-6">
-                    <h4 className="text-md font-semibold text-gray-700 mb-3">Progress Overview</h4>
+                <div>
+                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Progress Overview</h3>
                     <div className="bg-gray-50 p-4 rounded-lg">
                         <div className="mb-4">
                             <ProgressStats progress={task.progress} />
@@ -92,33 +149,7 @@ const ItemDetailsPanel: React.FC<ItemDetailsPanelProps> = ({ task, onClose }) =>
                     </div>
                 </div>
             )}
-            
-            <dl className="space-y-4">
-              <div>
-                <dt className="text-xs text-gray-500">Status</dt>
-                <dd className="text-sm font-medium text-gray-800">{task.status}</dd>
-              </div>
-              <div>
-                <dt className="text-xs text-gray-500">Assignees</dt>
-                <dd className="text-sm font-medium text-gray-800">{task.assignees.map(a => a.name).join(', ')}</dd>
-              </div>
-              <div>
-                <dt className="text-xs text-gray-500">Dates</dt>
-                <dd className="text-sm font-medium text-gray-800">{task.startDate} - {task.dueDate}</dd>
-              </div>
-               {task.priority && (
-                 <div>
-                    <dt className="text-xs text-gray-500">Priority</dt>
-                    <dd className="text-sm font-medium text-gray-800">{task.priority}</dd>
-                </div>
-              )}
-               {task.impact && (
-                 <div>
-                    <dt className="text-xs text-gray-500">Impact</dt>
-                    <dd className="text-sm font-medium text-gray-800">{task.impact}</dd>
-                </div>
-              )}
-            </dl>
+
           </div>
         </div>
       )}

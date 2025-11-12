@@ -1,9 +1,11 @@
 
 
-import { Task, Status, Assignee, Column, Priority, Impact, Progress } from './types';
+import { Task, Status, Assignee, Column, Priority, Impact, Progress, ColumnId } from './types';
 
 const JANE_SMITH: Assignee = { id: 'js', name: 'Jane Smith', initials: 'JS', avatarColor: 'bg-purple-600' };
 const SAM_LEE: Assignee = { id: 'sl', name: 'Sam Lee', initials: 'SL', avatarColor: 'bg-pink-600' };
+
+export const ALL_ASSIGNEES: Assignee[] = [JANE_SMITH, SAM_LEE];
 
 export const DEFAULT_COLUMNS: Column[] = [
   { id: 'name', label: 'Name', width: '400px', visible: true, minWidth: 200 },
@@ -27,6 +29,12 @@ export const MOCK_TASKS: Task[] = [
     priority: Priority.High,
     impact: Impact.High,
     progress: { percentage: 45, history: [10, 15, 25, 30, 45] },
+    health: [
+      { name: 'Blockers', status: 'complete', details: 'All blockers resolved.' },
+      { name: 'API Endpoint', status: 'at_risk', details: 'Waiting for final schema from backend team.' },
+      { name: 'Design Review', status: 'blocked', details: 'Awaiting feedback from stakeholders.' },
+      { name: 'Dependencies', status: 'complete', details: 'All upstream dependencies are met.' },
+    ],
     children: [
       {
         id: 2,
@@ -71,6 +79,10 @@ export const MOCK_TASKS: Task[] = [
         dueDate: '04/06/2024',
         priority: Priority.High,
         progress: { percentage: 80, history: [10, 30, 90, 85, 80] },
+        health: [
+            { name: 'User Stories', status: 'complete' },
+            { name: 'Technical Specs', status: 'at_risk', details: 'Needs final review from architecture.' },
+        ]
       },
       {
         id: 6,
@@ -101,6 +113,9 @@ export const MOCK_TASKS: Task[] = [
         dueDate: '10/06/2024',
         priority: Priority.Medium,
         progress: { percentage: 5, history: [20, 15, 10, 8, 5] },
+        health: [
+            { name: 'Copywriting', status: 'blocked', details: 'Creative team is over capacity.' },
+        ]
       },
       {
         id: 9,
@@ -116,3 +131,43 @@ export const MOCK_TASKS: Task[] = [
     ],
   },
 ];
+
+export const FILTERABLE_COLUMNS: { id: ColumnId; label: string; type: 'text' | 'enum' }[] = [
+    { id: 'name', label: 'Name', type: 'text' },
+    { id: 'status', label: 'Status', type: 'enum' },
+    { id: 'assignee', label: 'Assignee', type: 'enum' },
+    { id: 'priority', label: 'Priority', type: 'enum' },
+    { id: 'impact', label: 'Impact', type: 'enum' },
+    { id: 'dates', label: 'Dates', type: 'text' },
+];
+
+export const TEXT_OPERATORS = [
+    { id: 'contains', label: 'contains' },
+    { id: 'not_contains', label: 'does not contain' },
+    { id: 'is', label: 'is' },
+    { id: 'is_not', label: 'is not' },
+    { id: 'is_empty', label: 'is empty' },
+    { id: 'is_not_empty', label: 'is not empty' },
+];
+
+export const ENUM_OPERATORS = [
+    { id: 'is', label: 'is' },
+    { id: 'is_not', label: 'is not' },
+    { id: 'is_empty', label: 'is empty' },
+    { id: 'is_not_empty', label: 'is not empty' },
+];
+
+export const getEnumOptions = (columnId: ColumnId) => {
+    switch (columnId) {
+        case 'status':
+            return Object.values(Status).map(s => ({ id: s, label: s }));
+        case 'priority':
+            return Object.values(Priority).map(p => ({ id: p, label: p }));
+        case 'impact':
+            return Object.values(Impact).map(i => ({ id: i, label: i }));
+        case 'assignee':
+            return ALL_ASSIGNEES.map(a => ({ id: a.id, label: a.name }));
+        default:
+            return [];
+    }
+};
