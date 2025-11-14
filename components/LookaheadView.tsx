@@ -21,7 +21,7 @@ const addDays = (date: Date, days: number) => {
 };
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
-const DAY_WIDTH = 32;
+const DAY_WIDTH = 48;
 const LEFT_PANEL_WIDTH = 750;
 const ROW_HEIGHT = 40;
 
